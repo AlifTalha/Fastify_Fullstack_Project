@@ -78,7 +78,13 @@ const blogService = {
   // ── User ───────────────────────────────────────────────────────────────────
 
   async createPost({ userId, fields, fileParts }) {
-    const { title, content, category, videoLink } = fields;
+    const {
+      title,
+      content,
+      category,
+      videoLink,
+      imageUrl: imageUrlField,
+    } = fields;
     if (!title || !content) {
       const err = new Error("title and content are required");
       err.statusCode = 400;
@@ -105,7 +111,7 @@ const blogService = {
       slug,
       content,
       category: category || "OTHER",
-      imageUrl: imageUrl || null,
+      imageUrl: imageUrl || imageUrlField || null,
       pdfUrl: pdfUrl || null,
       videoLink: videoLink || null,
     });
@@ -146,15 +152,11 @@ const blogService = {
     }
     if (fields.videoLink !== undefined)
       data.videoLink = fields.videoLink || null;
+    if (fields.imageUrl !== undefined) data.imageUrl = fields.imageUrl || null;
 
     if (fileParts) {
       if (fileParts.image) data.imageUrl = await saveFile(fileParts.image);
       if (fileParts.pdf) data.pdfUrl = await saveFile(fileParts.pdf);
-    }
-
-    // Non-admin edits reset status to PENDING for re-approval
-    if (role !== "ADMIN" && Object.keys(data).length > 0) {
-      data.status = "PENDING";
     }
 
     return blogModel.updatePost(postId, data);

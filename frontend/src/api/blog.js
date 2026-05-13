@@ -1,32 +1,39 @@
 import api from "./axios";
 
+const BLOG_BASE = "/blog";
+
 // Public
-export const getPublicPosts = (params) => api.get("/blog/posts", { params });
+export const getPublicPosts = (params) =>
+  api.get(`${BLOG_BASE}/posts`, { params });
 
 // Authenticated
-export const getPublicPostBySlug = (slug) => api.get(`/blog/posts/${slug}`);
+export const getPublicPostBySlug = (slug) =>
+  api.get(`${BLOG_BASE}/posts/${slug}`);
 export const createPost = (formData) =>
-  api.post("/blog/posts", formData, {
+  api.post(`${BLOG_BASE}/posts`, formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
-export const getMyPosts = (params) => api.get("/blog/posts/my", { params });
+export const getMyPosts = (params) =>
+  api.get(`${BLOG_BASE}/posts/my`, { params });
 export const updatePost = (id, formData) =>
-  api.put(`/blog/posts/${id}`, formData, {
+  api.put(`${BLOG_BASE}/posts/${id}`, formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
-export const deletePost = (id) => api.delete(`/blog/posts/${id}`);
+export const deletePost = (id) => api.delete(`${BLOG_BASE}/posts/${id}`);
 export const addComment = (id, data) =>
-  api.post(`/blog/posts/${id}/comments`, data);
+  api.post(`${BLOG_BASE}/posts/${id}/comments`, data);
 export const editComment = (id, commentId, data) =>
-  api.put(`/blog/posts/${id}/comments/${commentId}`, data);
+  api.put(`${BLOG_BASE}/posts/${id}/comments/${commentId}`, data);
 export const deleteComment = (id, commentId) =>
-  api.delete(`/blog/posts/${id}/comments/${commentId}`);
+  api.delete(`${BLOG_BASE}/posts/${id}/comments/${commentId}`);
 
 // Admin
 export const adminGetPosts = (params) =>
-  api.get("/blog/admin/posts", { params });
-export const approvePost = (id) => api.patch(`/blog/admin/posts/${id}/approve`);
-export const rejectPost = (id) => api.patch(`/blog/admin/posts/${id}/reject`);
-export const adminDeletePost = (id) => api.delete(`/blog/admin/posts/${id}`);
+  api.get(`${BLOG_BASE}/admin/posts`, { params });
+export const getBlogStats = () => api.get(`${BLOG_BASE}/admin/stats`);
+export const updatePostStatus = (id, status) =>
+  api.patch(`${BLOG_BASE}/admin/posts/${id}/status`, { status });
+export const adminDeletePost = (id) =>
+  api.delete(`${BLOG_BASE}/admin/posts/${id}`);
 export const adminDeleteComment = (id, commentId) =>
-  api.delete(`/blog/admin/posts/${id}/comments/${commentId}`);
+  api.delete(`${BLOG_BASE}/admin/posts/${id}/comments/${commentId}`);
