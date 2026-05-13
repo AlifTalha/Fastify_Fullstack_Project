@@ -67,7 +67,18 @@ const ticketService = {
       err.statusCode = 400;
       throw err;
     }
-    return ticketModel.findAll({ status, priority, page, limit });
+    const result = await ticketModel.findAll({ status, priority, page, limit });
+
+    return {
+      ...result,
+      statusCounts: {
+        ALL: result.statusCounts?.ALL ?? result.total ?? 0,
+        OPEN: result.statusCounts?.OPEN ?? 0,
+        IN_PROGRESS: result.statusCounts?.IN_PROGRESS ?? 0,
+        RESOLVED: result.statusCounts?.RESOLVED ?? 0,
+        CLOSED: result.statusCounts?.CLOSED ?? 0,
+      },
+    };
   },
 
   async getTicketById(ticketId) {

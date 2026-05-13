@@ -67,7 +67,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white-700 md:grid md:grid-cols-2">
+    <div className="min-h-dvh bg-gray-50 md:min-h-screen md:grid md:grid-cols-2">
       {/* Left: image panel (50% width from left to middle) */}
       <div className="relative hidden md:block">
         <img
@@ -75,11 +75,11 @@ export default function LoginPage() {
           alt="Property"
           className="h-full w-full object-cover"
         />
-        <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 to-transparent p-10 text-white">
-          <h2 className="text-5xl font-bold tracking-tight">
+        <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 to-transparent p-8 text-white lg:p-10">
+          <h2 className="text-3xl font-bold tracking-tight lg:text-5xl">
             Find Your Dream Home
           </h2>
-          <p>
+          <p className="mt-2 text-sm text-white/90 lg:text-base">
             Browse premium listings, save favourites, and connect with our
             agents.
           </p>
@@ -87,10 +87,10 @@ export default function LoginPage() {
       </div>
 
       {/* Right: login section */}
-      <div className="relative flex min-h-screen items-center justify-center px-6 py-10 md:px-10">
+      <div className="relative flex min-h-dvh items-start justify-center px-4 pb-8 pt-20 sm:px-6 md:min-h-screen md:items-center md:px-10 md:py-10">
         <Link
           to="/"
-          className="group absolute right-6 top-6 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-500 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 hover:shadow-md"
+          className="group absolute right-4 top-4 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-500 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 hover:shadow-md sm:right-6 sm:top-6 sm:px-4 sm:py-2 sm:text-sm"
         >
           <span className="transition-transform duration-300 group-hover:-translate-x-0.5">
             ←
@@ -99,7 +99,7 @@ export default function LoginPage() {
         </Link>
 
         <div className="w-full max-w-105">
-          <h1 className="text-4xl font-bold text-gray-900">
+          <h1 className="text-3xl font-bold text-gray-900 sm:text-4xl">
             Login to Continue
           </h1>
           <p className="mt-2 text-sm leading-6 text-gray-500">
@@ -111,7 +111,7 @@ export default function LoginPage() {
           <div className="mt-6 grid grid-cols-2 overflow-hidden rounded-xl border border-gray-200">
             <button
               type="button"
-              className={`flex items-center justify-center gap-2 border-r border-gray-200 px-4 py-3 text-sm font-medium transition-colors ${
+              className={`flex items-center justify-center gap-1 border-r border-gray-200 px-3 py-2.5 text-xs font-medium transition-colors sm:gap-2 sm:px-4 sm:py-3 sm:text-sm ${
                 role === "user"
                   ? "bg-orange-50 text-orange-600"
                   : "bg-white text-gray-500 hover:bg-gray-50"
@@ -122,7 +122,7 @@ export default function LoginPage() {
             </button>
             <button
               type="button"
-              className={`flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
+              className={`flex items-center justify-center gap-1 px-3 py-2.5 text-xs font-medium transition-colors sm:gap-2 sm:px-4 sm:py-3 sm:text-sm ${
                 role === "admin"
                   ? "bg-orange-50 text-orange-600"
                   : "bg-white text-gray-500 hover:bg-gray-50"

@@ -5,6 +5,9 @@ const useAuthStore = create((set) => ({
   user: null,
   isAuthenticated: false,
   isLoading: false,
+  authChecked: false,
+
+  markAuthChecked: () => set({ authChecked: true }),
 
   login: async (credentials) => {
     set({ isLoading: true });
@@ -12,10 +15,15 @@ const useAuthStore = create((set) => ({
       const { data } = await loginApi(credentials);
       localStorage.setItem("accessToken", data.data.accessToken);
       localStorage.setItem("refreshToken", data.data.refreshToken);
-      set({ user: data.data.user, isAuthenticated: true, isLoading: false });
+      set({
+        user: data.data.user,
+        isAuthenticated: true,
+        isLoading: false,
+        authChecked: true,
+      });
       return data.data;
     } catch (err) {
-      set({ isLoading: false });
+      set({ isLoading: false, authChecked: true });
       throw err;
     }
   },
@@ -27,7 +35,7 @@ const useAuthStore = create((set) => ({
     } finally {
       localStorage.removeItem("accessToken");
       localStorage.removeItem("refreshToken");
-      set({ user: null, isAuthenticated: false });
+      set({ user: null, isAuthenticated: false, authChecked: true });
     }
   },
 
@@ -35,11 +43,21 @@ const useAuthStore = create((set) => ({
     try {
       set({ isLoading: true });
       const { data } = await getMe();
-      set({ user: data.data, isAuthenticated: true, isLoading: false });
+      set({
+        user: data.data,
+        isAuthenticated: true,
+        isLoading: false,
+        authChecked: true,
+      });
     } catch {
       localStorage.removeItem("accessToken");
       localStorage.removeItem("refreshToken");
-      set({ user: null, isAuthenticated: false, isLoading: false });
+      set({
+        user: null,
+        isAuthenticated: false,
+        isLoading: false,
+        authChecked: true,
+      });
     }
   },
 }));

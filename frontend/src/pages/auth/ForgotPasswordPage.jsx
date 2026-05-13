@@ -16,11 +16,13 @@ export default function ForgotPasswordPage() {
   const [otpError, setOtpError] = useState("");
   const [resendIn, setResendIn] = useState(8);
   const otpRefs = useRef([]);
+
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm();
+
   const navigate = useNavigate();
 
   const onEmailSubmit = async ({ email: e }) => {
@@ -78,9 +80,7 @@ export default function ForgotPasswordPage() {
       next[index] = digit;
       return next;
     });
-    if (digit && index < 5) {
-      otpRefs.current[index + 1]?.focus();
-    }
+    if (digit && index < 5) otpRefs.current[index + 1]?.focus();
   };
 
   const handleOtpKeyDown = (index, e) => {
@@ -150,36 +150,54 @@ export default function ForgotPasswordPage() {
         : "Create a strong password to secure your account.";
 
   return (
-    <div className="min-h-screen bg-white md:grid md:grid-cols-2">
+    <div className="min-h-dvh bg-gray-50 md:min-h-screen md:grid md:grid-cols-2">
+      <div className="relative h-56 overflow-hidden sm:h-64 md:hidden">
+        <img
+          src={FORGOT_IMAGE}
+          alt="Modern house"
+          className="h-full w-full object-cover"
+        />
+        <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 to-transparent p-4 text-white">
+          <h2 className="text-2xl font-bold tracking-tight">
+            Recover Access Fast
+          </h2>
+          <p className="mt-1 text-sm text-white/90">
+            Verify your account and set a new password in minutes.
+          </p>
+        </div>
+      </div>
+
       <div className="relative hidden md:block">
         <img
           src={FORGOT_IMAGE}
           alt="Modern house"
           className="h-full w-full object-cover"
         />
-        <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/65 to-transparent p-10 text-white">
-          <h2 className="text-5xl font-bold tracking-tight">
+        <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/65 to-transparent p-8 text-white lg:p-10">
+          <h2 className="text-3xl font-bold tracking-tight lg:text-5xl">
             Recover Access Fast
           </h2>
-          <p className="mt-2 text-lg text-white/90">
+          <p className="mt-2 text-sm text-white/90 lg:text-base">
             Verify your account and set a new password in minutes.
           </p>
         </div>
       </div>
 
-      <div className="relative flex min-h-screen items-center justify-center px-6 py-10 md:px-10">
+      <div className="relative flex min-h-[calc(100dvh-14rem)] items-start justify-center px-4 pb-8 pt-20 sm:px-6 md:min-h-screen md:items-center md:px-10 md:py-10">
         <Link
           to="/login"
-          className="group absolute right-6 top-6 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-500 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 hover:shadow-md"
+          className="group absolute right-4 top-4 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-500 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 hover:shadow-md sm:right-6 sm:top-6 sm:px-4 sm:py-2 sm:text-sm"
         >
           <span className="transition-transform duration-300 group-hover:-translate-x-0.5">
-            ←
+            &larr;
           </span>
           <span>Back to Login</span>
         </Link>
 
         <div className="w-full max-w-110">
-          <h1 className="text-4xl font-bold text-gray-900">{title}</h1>
+          <h1 className="text-3xl font-bold text-gray-900 sm:text-4xl">
+            {title}
+          </h1>
           <p className="mt-2 text-sm leading-6 text-gray-500">{subtitle}</p>
 
           {step === 1 && (
@@ -208,7 +226,7 @@ export default function ForgotPasswordPage() {
                 className="w-full rounded-xl bg-orange-500 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={isSubmitting}
               >
-                {isSubmitting ? "Sending..." : "SEND CODE  →"}
+                {isSubmitting ? "Sending..." : "SEND CODE  ->"}
               </button>
               <p className="text-sm text-gray-500">
                 Already have an account?{" "}
@@ -240,7 +258,7 @@ export default function ForgotPasswordPage() {
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">
                   OTP Code
                 </label>
-                <div className="mt-2 flex items-center gap-2">
+                <div className="mt-2 flex items-center justify-between gap-1.5 sm:gap-2">
                   {otpDigits.map((digit, index) => (
                     <input
                       key={index}
@@ -254,7 +272,7 @@ export default function ForgotPasswordPage() {
                       onChange={(e) => handleOtpChange(index, e.target.value)}
                       onKeyDown={(e) => handleOtpKeyDown(index, e)}
                       onPaste={handleOtpPaste}
-                      className="h-11 w-11 rounded-lg border border-gray-300 bg-white text-center text-base font-semibold text-gray-800 outline-none transition focus:border-orange-300 focus:ring-2 focus:ring-orange-200"
+                      className="h-10 w-10 rounded-lg border border-gray-300 bg-white text-center text-sm font-semibold text-gray-800 outline-none transition focus:border-orange-300 focus:ring-2 focus:ring-orange-200 sm:h-11 sm:w-11 sm:text-base"
                     />
                   ))}
                 </div>
@@ -306,7 +324,7 @@ export default function ForgotPasswordPage() {
                       required: "Password is required",
                       minLength: { value: 6, message: "Minimum 6 characters" },
                     })}
-                    placeholder="••••••••"
+                    placeholder="........"
                     className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 pr-10 text-sm text-gray-900 outline-none transition focus:border-orange-300 focus:ring-2 focus:ring-orange-200"
                   />
                   <button
@@ -315,7 +333,7 @@ export default function ForgotPasswordPage() {
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600"
                     aria-label="Toggle password visibility"
                   >
-                    {showPassword ? "🙈" : "👁"}
+                    {showPassword ? "Hide" : "Show"}
                   </button>
                 </div>
                 {errors.newPassword && (

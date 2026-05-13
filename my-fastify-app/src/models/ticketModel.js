@@ -14,11 +14,22 @@ const ticketModel = {
 
   // Get all tickets (admin) with optional filters
   async findAll({ status, priority, page = 1, limit = 20 } = {}) {
-    const where = {};
+    const baseWhere = {};
+    if (priority) baseWhere.priority = priority;
+
+    const where = { ...baseWhere };
     if (status) where.status = status;
-    if (priority) where.priority = priority;
+
     const skip = (Math.max(page, 1) - 1) * limit;
-    const [total, tickets] = await Promise.all([
+    const [
+      total,
+      tickets,
+      totalAll,
+      openCount,
+      inProgressCount,
+      resolvedCount,
+      closedCount,
+    ] = await Promise.all([
       prisma.ticket.count({ where }),
       prisma.ticket.findMany({
         where,
@@ -27,8 +38,24 @@ const ticketModel = {
         orderBy: { createdAt: "desc" },
         include: { user: { select: { id: true, name: true, email: true } } },
       }),
+      prisma.ticket.count({ where: baseWhere }),
+      prisma.ticket.count({ where: { ...baseWhere, status: "OPEN" } }),
+      prisma.ticket.count({ where: { ...baseWhere, status: "IN_PROGRESS" } }),
+      prisma.ticket.count({ where: { ...baseWhere, status: "RESOLVED" } }),
+      prisma.ticket.count({ where: { ...baseWhere, status: "CLOSED" } }),
     ]);
-    return { total, tickets };
+
+    return {
+      total,
+      tickets,
+      statusCounts: {
+        ALL: totalAll,
+        OPEN: openCount,
+        IN_PROGRESS: inProgressCount,
+        RESOLVED: resolvedCount,
+        CLOSED: closedCount,
+      },
+    };
   },
 
   // Get tickets for a specific user

@@ -8,6 +8,15 @@ export default function ShopPage() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [imageErrorIds, setImageErrorIds] = useState({});
+
+  const getProductImage = (imageUrl) => {
+    if (!imageUrl) return "";
+    const baseUrl =
+      import.meta.env.VITE_API_URL?.replace("/api/v1", "") ||
+      "http://localhost:3000";
+    return `${baseUrl}${imageUrl}`;
+  };
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -29,27 +38,46 @@ export default function ShopPage() {
 
   return (
     <div className="container">
-      <h1>Shop</h1>
+      <h1 className="mb-4 text-2xl font-bold text-gray-900 sm:text-3xl">
+        Shop
+      </h1>
 
-      <div className="product-grid">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {products.map((product) => (
           <Link
             to={`/shop/${product.id}`}
             key={product.id}
-            className="product-card"
+            className="overflow-hidden rounded-xl border border-gray-200 bg-white text-gray-900 no-underline shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
           >
-            {product.imageUrl && (
-              <img
-                src={`${import.meta.env.VITE_API_URL?.replace("/api/v1", "") || "http://localhost:3000"}${product.imageUrl}`}
-                alt={product.name}
-              />
-            )}
-            <div className="product-info">
-              <h3>{product.name}</h3>
-              <p className="product-price">
+            <div className="aspect-4/3 w-full bg-gray-100">
+              {product.imageUrl && !imageErrorIds[product.id] ? (
+                <img
+                  src={getProductImage(product.imageUrl)}
+                  alt={product.name}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                  onError={() => {
+                    setImageErrorIds((prev) => ({
+                      ...prev,
+                      [product.id]: true,
+                    }));
+                  }}
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center px-3 text-center text-sm font-medium text-gray-400">
+                  No image available
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-1 p-3 sm:p-4">
+              <h3 className="line-clamp-1 text-lg font-semibold text-gray-900">
+                {product.name}
+              </h3>
+              <p className="text-xl font-bold text-indigo-500">
                 ${Number(product.price).toFixed(2)}
               </p>
-              <p className="product-stock">
+              <p className="text-sm text-gray-500">
                 {product.stock > 0
                   ? `${product.stock} in stock`
                   : "Out of stock"}
@@ -60,16 +88,21 @@ export default function ShopPage() {
       </div>
 
       {totalPages > 1 && (
-        <div className="pagination">
-          <button disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          <button
+            disabled={page === 1}
+            onClick={() => setPage((p) => p - 1)}
+            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+          >
             Prev
           </button>
-          <span>
+          <span className="text-sm font-medium text-gray-600">
             Page {page} of {totalPages}
           </span>
           <button
             disabled={page === totalPages}
             onClick={() => setPage((p) => p + 1)}
+            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Next
           </button>

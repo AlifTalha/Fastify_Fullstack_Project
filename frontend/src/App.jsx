@@ -43,11 +43,15 @@ import AdminOrdersPage from "./pages/admin/AdminOrdersPage";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
 
 function AppInitializer() {
-  const { fetchMe } = useAuthStore();
+  const { fetchMe, markAuthChecked } = useAuthStore();
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
-    if (token) fetchMe();
-  }, [fetchMe]);
+    if (token) {
+      fetchMe();
+    } else {
+      markAuthChecked();
+    }
+  }, [fetchMe, markAuthChecked]);
   return null;
 }
 
@@ -93,6 +97,7 @@ export default function App() {
             <Route path="/admin/products" element={<AdminProductsPage />} />
             <Route path="/admin/orders" element={<AdminOrdersPage />} />
             <Route path="/admin/users" element={<AdminUsersPage />} />
+            <Route path="/admin/profile" element={<ProfilePage />} />
           </Route>
         </Route>
       </Routes>

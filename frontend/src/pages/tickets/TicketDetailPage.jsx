@@ -73,14 +73,14 @@ export default function TicketDetailPage() {
   const isClosed = ticket.status === "CLOSED" || ticket.status === "RESOLVED";
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
+    <div className="max-w-5xl mx-auto px-4 py-8">
       {/* Back */}
       <Link
         to="/tickets"
-        className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-orange-500 mb-5 transition-colors"
+        className="group mb-5 inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-500 transition-all hover:-translate-y-0.5 hover:border-orange-200 hover:text-orange-600"
       >
         <svg
-          className="w-4 h-4"
+          className="h-4 w-4 transition-transform group-hover:-translate-x-0.5"
           fill="none"
           stroke="currentColor"
           strokeWidth={2}
@@ -95,114 +95,144 @@ export default function TicketDetailPage() {
         Back to Tickets
       </Link>
 
-      {/* Header card */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-4">
-        <div className="flex items-start justify-between gap-3">
-          <h1 className="text-xl font-bold text-gray-800">{ticket.subject}</h1>
-          <div className="flex gap-2 shrink-0">
+      <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
+        {/* Ticket summary */}
+        <div className="rounded-2xl border border-gray-200 bg-white p-5 lg:sticky lg:top-24 lg:h-fit">
+          <h1 className="text-xl font-bold text-gray-900">{ticket.subject}</h1>
+          <p className="mt-1 text-xs text-gray-400">
+            Opened {new Date(ticket.createdAt).toLocaleDateString()}
+          </p>
+
+          <div className="mt-3 flex flex-wrap gap-2">
             <span
-              className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_COLORS[ticket.status] ?? "bg-gray-100 text-gray-500"}`}
+              className={`rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS_COLORS[ticket.status] ?? "bg-gray-100 text-gray-500"}`}
             >
               {ticket.status}
             </span>
             <span
-              className={`text-xs font-semibold px-2.5 py-1 rounded-full ${PRIORITY_COLORS[ticket.priority] ?? "bg-gray-100 text-gray-500"}`}
+              className={`rounded-full px-2.5 py-1 text-xs font-semibold ${PRIORITY_COLORS[ticket.priority] ?? "bg-gray-100 text-gray-500"}`}
             >
               {ticket.priority}
             </span>
           </div>
-        </div>
-        <p className="text-sm text-gray-400 mt-1">
-          Opened {new Date(ticket.createdAt).toLocaleDateString()}
-        </p>
-        <div className="mt-3 p-3 bg-orange-50 rounded-xl">
-          <p className="text-xs font-semibold text-orange-500 uppercase tracking-wide mb-1">
-            Description
-          </p>
-          <p className="text-sm text-gray-700 whitespace-pre-wrap">
-            {ticket.description}
-          </p>
-        </div>
-      </div>
 
-      {/* Reply thread */}
-      <div className="bg-white rounded-2xl border border-gray-200 flex flex-col">
-        <div className="px-5 py-3 border-b border-gray-100">
-          <p className="text-sm font-semibold text-gray-700">
-            Replies{" "}
-            <span className="text-gray-400 font-normal">
-              ({ticket.replies?.length ?? 0})
-            </span>
-          </p>
-        </div>
-
-        <div className="flex-1 px-5 py-4 space-y-3 min-h-32">
-          {(!ticket.replies || ticket.replies.length === 0) && (
-            <p className="text-sm text-gray-400 text-center py-6">
-              No replies yet. Send a message below.
+          <div className="mt-4 rounded-xl border border-orange-100 bg-orange-50 p-3">
+            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-orange-600">
+              Description
             </p>
-          )}
-          {ticket.replies?.map((r, i) => {
-            const isAdmin = r.role === "ADMIN";
-            return (
-              <div
-                key={r.id ?? i}
-                className={`flex ${isAdmin ? "justify-end" : "justify-start"}`}
-              >
-                <div
-                  className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
-                    isAdmin
-                      ? "bg-orange-500 text-white rounded-br-sm"
-                      : "bg-gray-100 text-gray-800 rounded-bl-sm"
-                  }`}
-                >
-                  <p
-                    className={`text-[10px] font-semibold mb-1 ${isAdmin ? "text-orange-200" : "text-gray-400"}`}
-                  >
-                    {isAdmin
-                      ? "Support Team"
-                      : (r.userName ?? user?.name ?? "You")}
-                  </p>
-                  <p className="whitespace-pre-wrap">{r.message}</p>
-                  <p
-                    className={`text-[10px] mt-1 text-right ${isAdmin ? "text-orange-200" : "text-gray-400"}`}
-                  >
-                    {new Date(r.createdAt).toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
-          <div ref={bottomRef} />
+            <p className="whitespace-pre-wrap text-sm text-gray-700">
+              {ticket.description}
+            </p>
+          </div>
+
+          <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50 p-3 text-xs text-gray-500">
+            <p>Ticket ID: #{String(ticket.id).slice(0, 8)}</p>
+            <p className="mt-1">Replies: {ticket.replies?.length ?? 0}</p>
+          </div>
         </div>
 
-        {/* Reply input */}
-        {isClosed ? (
-          <div className="px-5 py-4 border-t border-gray-100 text-center text-sm text-gray-400">
-            This ticket is {ticket.status.toLowerCase()} and no longer accepts
-            replies.
+        {/* Conversation */}
+        <div className="flex min-h-130 flex-col rounded-2xl border border-gray-200 bg-white">
+          <div className="border-b border-gray-100 px-5 py-4">
+            <p className="text-base font-semibold text-gray-800">
+              Conversation
+            </p>
+            <p className="text-xs text-gray-400">
+              Reply directly to continue the support thread.
+            </p>
           </div>
-        ) : (
-          <form
-            onSubmit={handleReply}
-            className="border-t border-gray-100 px-5 py-4 flex gap-3 items-end"
-          >
-            <textarea
-              rows={2}
-              value={replyText}
-              onChange={(e) => setReplyText(e.target.value)}
-              placeholder="Type your reply…"
-              className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-300"
-            />
-            <button
-              type="submit"
-              disabled={sending || !replyText.trim()}
-              className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-medium px-5 py-2 rounded-xl transition-colors"
+
+          <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
+            {(!ticket.replies || ticket.replies.length === 0) && (
+              <div className="flex h-56 items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50 text-center">
+                <p className="text-sm text-gray-400">
+                  No replies yet. Start the conversation below.
+                </p>
+              </div>
+            )}
+            {ticket.replies?.map((r, i) => {
+              const isAdmin = r.role === "ADMIN";
+              return (
+                <div
+                  key={r.id ?? i}
+                  className={`flex ${isAdmin ? "justify-end" : "justify-start"}`}
+                >
+                  <div
+                    className={`max-w-4/5 ${isAdmin ? "items-end" : "items-start"} flex flex-col`}
+                  >
+                    <p className="mb-1 px-1 text-[11px] font-semibold text-gray-400">
+                      {isAdmin
+                        ? "Support Team"
+                        : (r.userName ?? user?.name ?? "You")}
+                    </p>
+                    <div
+                      className={`rounded-2xl px-4 py-2.5 text-sm shadow-xs ${
+                        isAdmin
+                          ? "rounded-br-sm bg-orange-500 text-white"
+                          : "rounded-bl-sm border border-gray-200 bg-gray-50 text-gray-800"
+                      }`}
+                    >
+                      <p className="whitespace-pre-wrap">{r.message}</p>
+                      <p
+                        className={`mt-1 text-right text-[10px] ${
+                          isAdmin ? "text-orange-200" : "text-gray-400"
+                        }`}
+                      >
+                        {new Date(r.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={bottomRef} />
+          </div>
+
+          {/* Reply input */}
+          {isClosed ? (
+            <div className="border-t border-gray-100 px-5 py-4 text-center text-sm text-gray-400">
+              This ticket is {ticket.status.toLowerCase()} and no longer accepts
+              replies.
+            </div>
+          ) : (
+            <form
+              onSubmit={handleReply}
+              className="border-t border-gray-100 px-5 py-4"
             >
-              {sending ? "…" : "Send"}
-            </button>
-          </form>
-        )}
+              <div className="flex items-end gap-3">
+                <textarea
+                  rows={2}
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  placeholder="Type your reply..."
+                  className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm resize-none outline-none transition focus:border-orange-300 focus:ring-2 focus:ring-orange-200"
+                />
+                <button
+                  type="submit"
+                  disabled={sending || !replyText.trim()}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-orange-500 px-5 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:opacity-60"
+                >
+                  <span>{sending ? "Sending" : "Send"}</span>
+                  {!sending && (
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M5 12h14M13 5l7 7-7 7"
+                      />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
       </div>
     </div>
   );

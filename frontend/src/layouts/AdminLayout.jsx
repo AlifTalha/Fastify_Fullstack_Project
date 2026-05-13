@@ -138,7 +138,7 @@ const menuItems = [
   },
   {
     label: "Profile",
-    to: "/profile",
+    to: "/admin/profile",
     icon: (
       <svg
         className="w-5 h-5"
@@ -173,12 +173,14 @@ export default function AdminLayout() {
       {/* Sidebar */}
       <aside className="w-64 shrink-0 bg-white border-r border-gray-200 flex flex-col">
         {/* Logo */}
-        <div className="flex items-center gap-2 px-5 py-5 border-b border-gray-100">
-          <img
-            src="/image/logo.png"
-            alt="Logo"
-            className="h-8 w-auto object-contain"
-          />
+        <div className="flex items-center justify-center border-b border-gray-100 px-5 py-5">
+          <div className="flex h-12 w-24 items-center justify-center rounded-xl bg-gray-50">
+            <img
+              src="/image/logo.png"
+              alt="Logo"
+              className="h-8 w-auto object-contain"
+            />
+          </div>
         </div>
 
         {/* Nav */}
