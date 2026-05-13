@@ -140,7 +140,6 @@ const orderController = {
 
     const filename = `invoice-${order.invoiceNumber}.pdf`;
 
-    // Hijack the raw response so Fastify does not close it when this handler returns
     reply.hijack();
     const res = reply.raw;
     res.setHeader("Content-Type", "application/pdf");

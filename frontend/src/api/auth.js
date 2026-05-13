@@ -9,7 +9,12 @@ export const updateProfile = (data) => api.put("/auth/profile", data);
 export const changePassword = (data) => api.put("/auth/change-password", data);
 export const forgotPassword = (data) => api.post("/auth/forgot-password", data);
 export const verifyOtp = (data) => api.post("/auth/verify-otp", data);
-export const resetPassword = (data) => api.post("/auth/reset-password", data);
+export const resetPassword = (newPassword, resetToken) =>
+  api.post(
+    "/auth/reset-password",
+    { newPassword },
+    { headers: { Authorization: `Bearer ${resetToken}` } },
+  );
 
 // Admin user management
 export const getUsers = (params) => api.get("/users", { params });

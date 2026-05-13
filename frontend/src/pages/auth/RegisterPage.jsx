@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
@@ -7,10 +8,13 @@ const REGISTER_IMAGE =
   "https://as2.ftcdn.net/v2/jpg/04/61/23/39/1000_F_461233963_Oy0VVirW39t2TTTWNNg5e8QWd2sZ8L2S.jpg";
 
 export default function RegisterPage() {
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const {
     register,
     handleSubmit,
-    watch,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm();
   const navigate = useNavigate();
@@ -50,9 +54,12 @@ export default function RegisterPage() {
       <div className="relative flex min-h-screen items-center justify-center px-6 py-10 md:px-10">
         <Link
           to="/"
-          className="absolute right-6 top-6 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-500 transition-colors hover:bg-gray-50"
+          className="group absolute right-6 top-6 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-500 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 hover:shadow-md"
         >
-          ← Back to Home
+          <span className="transition-transform duration-300 group-hover:-translate-x-0.5">
+            ←
+          </span>
+          <span>Back to Home</span>
         </Link>
 
         <div className="w-full max-w-110">
@@ -101,15 +108,25 @@ export default function RegisterPage() {
               <label className="mb-1.5 block text-sm font-medium text-gray-700">
                 Password
               </label>
-              <input
-                type="password"
-                {...register("password", {
-                  required: "Password is required",
-                  minLength: { value: 6, message: "Minimum 6 characters" },
-                })}
-                placeholder="••••••••"
-                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-orange-300 focus:ring-2 focus:ring-orange-200"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  {...register("password", {
+                    required: "Password is required",
+                    minLength: { value: 6, message: "Minimum 6 characters" },
+                  })}
+                  placeholder="••••••••"
+                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 pr-10 text-sm text-gray-900 outline-none transition focus:border-orange-300 focus:ring-2 focus:ring-orange-200"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((s) => !s)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600"
+                  aria-label="Toggle password visibility"
+                >
+                  {showPassword ? "🙈" : "👁"}
+                </button>
+              </div>
               {errors.password && (
                 <span className="mt-1 block text-xs text-red-500">
                   {errors.password.message}
@@ -121,16 +138,26 @@ export default function RegisterPage() {
               <label className="mb-1.5 block text-sm font-medium text-gray-700">
                 Confirm Password
               </label>
-              <input
-                type="password"
-                {...register("confirmPassword", {
-                  required: "Please confirm password",
-                  validate: (val) =>
-                    val === watch("password") || "Passwords do not match",
-                })}
-                placeholder="••••••••"
-                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-orange-300 focus:ring-2 focus:ring-orange-200"
-              />
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  {...register("confirmPassword", {
+                    required: "Please confirm password",
+                    validate: (val) =>
+                      val === getValues("password") || "Passwords do not match",
+                  })}
+                  placeholder="••••••••"
+                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 pr-10 text-sm text-gray-900 outline-none transition focus:border-orange-300 focus:ring-2 focus:ring-orange-200"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword((s) => !s)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600"
+                  aria-label="Toggle confirm password visibility"
+                >
+                  {showConfirmPassword ? "🙈" : "👁"}
+                </button>
+              </div>
               {errors.confirmPassword && (
                 <span className="mt-1 block text-xs text-red-500">
                   {errors.confirmPassword.message}
