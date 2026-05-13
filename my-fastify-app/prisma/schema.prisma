@@ -1,0 +1,230 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                       String                    @id @default(uuid())
+  email                    String                    @unique
+  password                 String
+  name                     String?
+  role                     Role                      @default(USER)
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+  refreshTokens            RefreshToken[]
+  conversationParticipants ConversationParticipant[]
+  sentMessages             Message[]                 @relation("MessageSender")
+  receivedMessages         Message[]                 @relation("MessageReceiver")
+  tickets                  Ticket[]
+  blogPosts                BlogPost[]
+  blogComments             BlogComment[]
+  orders                   Order[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("refresh_tokens")
+}
+
+model Conversation {
+  id           String                    @id @default(uuid())
+  participants ConversationParticipant[]
+  messages     Message[]
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  receiverId     String
+  sender         User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver       User         @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  content        String?
+  mediaUrl       String?
+  mediaType      String?
+  isRead         Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
+  @@map("messages")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+model Ticket {
+  id          String        @id @default(uuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject     String
+  description String
+  priority    Priority      @default(MEDIUM)
+  status      TicketStatus  @default(OPEN)
+  replies     Json          @default("[]")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@map("tickets")
+}
+
+
+enum BlogStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum BlogCategory {
+  TECHNOLOGY
+  HEALTH
+  EDUCATION
+  BUSINESS
+  LIFESTYLE
+  TRAVEL
+  FOOD
+  SPORTS
+  ENTERTAINMENT
+  OTHER
+}
+
+model BlogPost {
+  id          String        @id @default(uuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category    BlogCategory  @default(OTHER)
+  title       String
+  slug        String        @unique
+  content     String
+  imageUrl    String?
+  pdfUrl      String?
+  videoLink   String?
+  status      BlogStatus    @default(PENDING)
+  comments    BlogComment[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([category])
+  @@map("blog_posts")
+}
+
+model BlogComment {
+  id        String   @id @default(uuid())
+  postId    String
+  post      BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([postId])
+  @@map("blog_comments")
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  price       Int      // stored in cents (e.g. 2999 = $29.99)
+  currency    String   @default("usd")
+  imageUrl    String?
+  stock       Int      @default(0)
+  isActive    Boolean  @default(true)
+  orders      Order[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive])
+  @@map("products")
+}
+
+model Order {
+  id                    String      @id @default(uuid())
+  userId                String
+  user                  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId             String
+  product               Product     @relation(fields: [productId], references: [id], onDelete: Restrict)
+  quantity              Int         @default(1)
+  amount                Int         // total in cents
+  currency              String      @default("usd")
+  status                OrderStatus @default(PENDING)
+  stripePaymentIntentId String?     @unique
+  invoiceNumber         String      @unique
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@map("orders")
+}
+
+model PasswordResetOtp {
+  id         String   @id @default(uuid())
+  email      String
+  otp        String
+  expiresAt  DateTime
+  used       Boolean  @default(false)
+  resetToken String?  @unique
+  createdAt  DateTime @default(now())
+
+  @@index([email])
+  @@map("password_reset_otps")
+}
+
