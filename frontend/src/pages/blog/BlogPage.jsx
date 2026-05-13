@@ -174,7 +174,7 @@ export default function BlogPage() {
             {CATEGORIES.map((cat) => (
               <button
                 key={cat}
-                className={`rounded-full border px-4 py-2 text-xs font-semibold transition-colors ${
+                className={`cursor-pointer rounded-full border px-4 py-2 text-xs font-semibold transition-colors ${
                   category === cat
                     ? "border-orange-200 bg-orange-100 text-orange-700"
                     : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
