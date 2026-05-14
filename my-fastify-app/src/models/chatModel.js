@@ -127,6 +127,44 @@ const chatModel = {
       data: { isRead: true },
     });
   },
+
+  async findFirstAdmin() {
+    return prisma.user.findFirst({
+      where: { role: "ADMIN" },
+      select: { id: true, name: true, email: true },
+    });
+  },
+
+  async findAllConversations() {
+    return prisma.conversation.findMany({
+      orderBy: { updatedAt: "desc" },
+      include: {
+        participants: {
+          include: {
+            user: { select: { id: true, name: true, email: true, role: true } },
+          },
+        },
+        messages: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: {
+            id: true,
+            content: true,
+            mediaType: true,
+            isRead: true,
+            senderId: true,
+            createdAt: true,
+          },
+        },
+      },
+    });
+  },
+
+  async countUnread(conversationId, userId) {
+    return prisma.message.count({
+      where: { conversationId, receiverId: userId, isRead: false },
+    });
+  },
 };
 
 module.exports = chatModel;

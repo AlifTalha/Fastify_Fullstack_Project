@@ -133,6 +133,24 @@ const chatService = {
       if (onlineUsers[userId].size === 0) delete onlineUsers[userId];
     }
   },
+
+  isOnline(userId) {
+    return !!(onlineUsers[userId] && onlineUsers[userId].size > 0);
+  },
+
+  async getAdminUser() {
+    const admin = await chatModel.findFirstAdmin();
+    if (!admin) {
+      const err = new Error("No admin user found");
+      err.statusCode = 404;
+      throw err;
+    }
+    return admin;
+  },
+
+  async getAllConversations() {
+    return chatModel.findAllConversations();
+  },
 };
 
 module.exports = chatService;

@@ -100,6 +100,7 @@ export default function App() {
             <Route path="/admin/products" element={<AdminProductsPage />} />
             <Route path="/admin/orders" element={<AdminOrdersPage />} />
             <Route path="/admin/users" element={<AdminUsersPage />} />
+            <Route path="/admin/chat" element={<ChatPage />} />
             <Route path="/admin/profile" element={<ProfilePage />} />
           </Route>
         </Route>

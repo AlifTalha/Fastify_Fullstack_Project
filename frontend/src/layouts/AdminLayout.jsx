@@ -120,7 +120,7 @@ const menuItems = [
   },
   {
     label: "Chat",
-    to: "/chat",
+    to: "/admin/chat",
     icon: (
       <svg
         className="w-5 h-5"
@@ -339,7 +339,7 @@ export default function AdminLayout() {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-auto">
+        <main className="flex flex-1 flex-col overflow-hidden">
           <Outlet />
         </main>
       </div>

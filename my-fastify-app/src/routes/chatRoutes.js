@@ -49,6 +49,18 @@ async function chatRoutes(fastify) {
     chatController.uploadMedia,
   );
 
+  // ── Admin endpoints ────────────────────────────────────────────────────────
+  fastify.get(
+    "/admin-user",
+    { preHandler: [fastify.authenticate] },
+    chatController.getAdminUser,
+  );
+  fastify.get(
+    "/admin/conversations",
+    { preHandler: [fastify.authorizeAdmin] },
+    chatController.getAllConversationsAdmin,
+  );
+
   // ── WebSocket ──────────────────────────────────────────────────────────────
   fastify.get("/ws", { websocket: true }, chatController.wsHandler);
 }

@@ -95,6 +95,18 @@ const chatController = {
     return reply.code(200).send({ success: true, data: result });
   },
 
+  /** GET /admin-user — returns the first admin user (authenticated users) */
+  async getAdminUser(request, reply) {
+    const admin = await chatService.getAdminUser();
+    return reply.code(200).send({ success: true, data: admin });
+  },
+
+  /** GET /admin/conversations — returns all conversations (admin only) */
+  async getAllConversationsAdmin(request, reply) {
+    const convs = await chatService.getAllConversations();
+    return reply.code(200).send({ success: true, data: convs });
+  },
+
   // ── WebSocket ──────────────────────────────────────────────────────────────
 
   /**
