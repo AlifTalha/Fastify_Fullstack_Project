@@ -12,6 +12,7 @@ export default function ShopPage() {
 
   const getProductImage = (imageUrl) => {
     if (!imageUrl) return "";
+    if (/^https?:\/\//i.test(imageUrl)) return imageUrl;
     const baseUrl =
       import.meta.env.VITE_API_URL?.replace("/api/v1", "") ||
       "http://localhost:3000";

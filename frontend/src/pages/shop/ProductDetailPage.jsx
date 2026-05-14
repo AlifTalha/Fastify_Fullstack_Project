@@ -54,12 +54,15 @@ export default function ProductDetailPage() {
   const BASE =
     import.meta.env.VITE_API_URL?.replace("/api/v1", "") ||
     "http://localhost:3000";
+  const productImageSrc = product.imageUrl
+    ? /^https?:\/\//i.test(product.imageUrl)
+      ? product.imageUrl
+      : `${BASE}${product.imageUrl}`
+    : "";
 
   return (
     <div className="container product-detail">
-      {product.imageUrl && (
-        <img src={`${BASE}${product.imageUrl}`} alt={product.name} />
-      )}
+      {product.imageUrl && <img src={productImageSrc} alt={product.name} />}
 
       <div className="product-detail-info">
         <h1>{product.name}</h1>

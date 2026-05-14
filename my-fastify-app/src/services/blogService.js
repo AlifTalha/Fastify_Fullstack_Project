@@ -65,9 +65,10 @@ const blogService = {
     return blogModel.findPublicPosts({ category, page, limit });
   },
 
-  async getPublicPostBySlug(slug) {
+  async getPublicPostBySlug(slug, role) {
     const post = await blogModel.findPostBySlug(slug);
-    if (!post || post.status !== "APPROVED") {
+    const canViewAnyStatus = role === "ADMIN";
+    if (!post || (!canViewAnyStatus && post.status !== "APPROVED")) {
       const err = new Error("Post not found");
       err.statusCode = 404;
       throw err;

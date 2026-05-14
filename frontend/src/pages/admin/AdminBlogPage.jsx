@@ -6,9 +6,34 @@ import {
   getBlogStats,
   updatePostStatus,
   adminDeletePost,
+  getPublicPostBySlug,
 } from "../../api/blog";
 
 const STATUS_TABS = ["ALL", "PENDING", "APPROVED", "REJECTED"];
+const BASE =
+  import.meta.env.VITE_API_URL?.replace("/api/v1", "") ||
+  "http://localhost:3000";
+
+const getImageUrl = (imageUrl) =>
+  /^https?:\/\//i.test(imageUrl) ? imageUrl : `${BASE}${imageUrl}`;
+
+const escapeHtml = (value = "") =>
+  String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+
+const getStatusBadgeStyle = (status) => {
+  if (status === "APPROVED") {
+    return "background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;";
+  }
+  if (status === "REJECTED") {
+    return "background:#fff1f2;color:#be123c;border:1px solid #fecdd3;";
+  }
+  return "background:#fffbeb;color:#b45309;border:1px solid #fde68a;";
+};
 
 export default function AdminBlogPage() {
   const [posts, setPosts] = useState([]);
@@ -38,6 +63,21 @@ export default function AdminBlogPage() {
   }, [status]);
 
   const handleApprove = async (id) => {
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "Approve this post?",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Yes",
+      cancelButtonText: "No",
+      confirmButtonColor: "#10b981",
+      cancelButtonColor: "#6b7280",
+      reverseButtons: true,
+      focusCancel: true,
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
       await updatePostStatus(id, "APPROVED");
       toast.success("Post approved");
@@ -52,6 +92,21 @@ export default function AdminBlogPage() {
   };
 
   const handleReject = async (id) => {
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "Reject this post?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes",
+      cancelButtonText: "No",
+      confirmButtonColor: "#f59e0b",
+      cancelButtonColor: "#6b7280",
+      reverseButtons: true,
+      focusCancel: true,
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
       await updatePostStatus(id, "REJECTED");
       toast.success("Post rejected");
@@ -67,11 +122,11 @@ export default function AdminBlogPage() {
 
   const handleDelete = async (id) => {
     const result = await Swal.fire({
-      title: "Delete this post?",
+      title: "Are you sure?",
       text: "This action cannot be undone.",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonText: "Yes, delete",
+      confirmButtonText: "Yes",
       cancelButtonText: "No",
       confirmButtonColor: "#ef4444",
       cancelButtonColor: "#6b7280",
@@ -87,6 +142,51 @@ export default function AdminBlogPage() {
       setPosts((p) => p.filter((post) => post.id !== id));
     } catch {
       toast.error("Failed");
+    }
+  };
+
+  const handleViewPost = async (slug) => {
+    try {
+      const { data } = await getPublicPostBySlug(slug);
+      const post = data.data || data.post || data;
+
+      const safeTitle = escapeHtml(post.title || "Untitled");
+      const safeAuthor = escapeHtml(post.user?.name || "Unknown");
+      const safeCategory = escapeHtml(post.category || "-");
+      const safeStatus = escapeHtml(post.status || "PENDING");
+      const safeContent = escapeHtml(post.content || "No content").replaceAll(
+        "\n",
+        "<br/>",
+      );
+      const safeDate = escapeHtml(
+        post.createdAt ? new Date(post.createdAt).toLocaleString() : "-",
+      );
+      const imageBlock = post.imageUrl
+        ? `<img src="${escapeHtml(getImageUrl(post.imageUrl))}" alt="${safeTitle}" style="width:100%;max-height:260px;object-fit:cover;border-radius:14px;border:1px solid #e5e7eb;"/>`
+        : `<div style="width:100%;height:180px;border:1px dashed #d1d5db;border-radius:14px;display:flex;align-items:center;justify-content:center;color:#9ca3af;background:#f9fafb;">No image available</div>`;
+
+      await Swal.fire({
+        width: 900,
+        showCloseButton: true,
+        confirmButtonText: "Close",
+        confirmButtonColor: "#f97316",
+        html: `
+          <div style="text-align:left; font-family:inherit; color:#111827;">
+            <p style="margin:0 0 8px; font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:#f97316; font-weight:700;">Blog Detail</p>
+            <h2 style="margin:0 0 16px; font-size:28px; line-height:1.15; font-weight:800;">${safeTitle}</h2>
+            ${imageBlock}
+            <div style="display:flex; flex-wrap:wrap; gap:8px; margin:14px 0 14px;">
+              <span style="padding:4px 10px; border-radius:999px; border:1px solid #d1d5db; background:#f9fafb; font-size:12px; font-weight:700;">${safeCategory}</span>
+              <span style="padding:4px 10px; border-radius:999px; font-size:12px; font-weight:700; ${getStatusBadgeStyle(post.status)}">${safeStatus}</span>
+              <span style="padding:4px 10px; border-radius:999px; border:1px solid #d1d5db; background:#f9fafb; font-size:12px;">${safeAuthor}</span>
+              <span style="padding:4px 10px; border-radius:999px; border:1px solid #d1d5db; background:#f9fafb; font-size:12px;">${safeDate}</span>
+            </div>
+            <div style="margin-top:10px; border:1px solid #e5e7eb; border-radius:14px; padding:14px; background:#ffffff; max-height:260px; overflow:auto; line-height:1.7; color:#374151;">${safeContent}</div>
+          </div>
+        `,
+      });
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to load post detail");
     }
   };
 
@@ -204,6 +304,12 @@ export default function AdminBlogPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
+                            onClick={() => handleViewPost(post.slug)}
+                          >
+                            View
+                          </button>
                           {post.status === "PENDING" && (
                             <>
                               <button

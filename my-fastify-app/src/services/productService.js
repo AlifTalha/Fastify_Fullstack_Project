@@ -36,7 +36,11 @@ const productService = {
     }
 
     let imageUrl;
-    if (fileParts?.image) imageUrl = await saveFile(fileParts.image);
+    if (fileParts?.image) {
+      imageUrl = await saveFile(fileParts.image);
+    } else if (fields.imageUrl && fields.imageUrl.trim()) {
+      imageUrl = fields.imageUrl.trim();
+    }
 
     return productModel.create({
       name,
@@ -91,7 +95,11 @@ const productService = {
       data.stock = parseInt(fields.stock, 10) || 0;
     if (fields.isActive !== undefined)
       data.isActive = fields.isActive === "true";
-    if (fileParts?.image) data.imageUrl = await saveFile(fileParts.image);
+    if (fileParts?.image) {
+      data.imageUrl = await saveFile(fileParts.image);
+    } else if (fields.imageUrl !== undefined && fields.imageUrl.trim() !== "") {
+      data.imageUrl = fields.imageUrl.trim();
+    }
 
     return productModel.update(id, data);
   },

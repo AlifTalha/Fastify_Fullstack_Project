@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import useAuthStore from "../store/authStore";
 
@@ -160,20 +161,34 @@ const menuItems = [
 export default function AdminLayout() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = async () => {
     await logout();
     navigate("/login");
   };
 
+  const closeSidebar = () => setSidebarOpen(false);
   const initial = user?.name?.charAt(0)?.toUpperCase() ?? "A";
 
   return (
     <div className="flex h-screen bg-gray-50">
+      {/* Mobile backdrop */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-20 bg-black/40 lg:hidden"
+          onClick={closeSidebar}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-64 shrink-0 bg-white border-r border-gray-200 flex flex-col">
-        {/* Logo */}
-        <div className="flex items-center justify-center border-b border-gray-100 px-5 py-5">
+      <aside
+        className={`fixed inset-y-0 left-0 z-30 flex w-64 shrink-0 flex-col border-r border-gray-200 bg-white transition-transform duration-200 lg:static lg:translate-x-0 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        {/* Logo + close button (mobile) */}
+        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-5">
           <div className="flex h-12 w-24 items-center justify-center rounded-xl bg-gray-50">
             <img
               src="/image/logo.png"
@@ -181,6 +196,24 @@ export default function AdminLayout() {
               className="h-8 w-auto object-contain"
             />
           </div>
+          <button
+            onClick={closeSidebar}
+            className="rounded-lg p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 lg:hidden"
+          >
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
         </div>
 
         {/* Nav */}
@@ -194,6 +227,7 @@ export default function AdminLayout() {
                 <NavLink
                   to={to}
                   end={end}
+                  onClick={closeSidebar}
                   className={({ isActive }) =>
                     `flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                       isActive
@@ -274,10 +308,41 @@ export default function AdminLayout() {
         </div>
       </aside>
 
-      {/* Main content */}
-      <main className="flex-1 overflow-auto">
-        <Outlet />
-      </main>
+      {/* Right-side content wrapper */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* Mobile topbar */}
+        <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-3 lg:hidden">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="rounded-lg p-1.5 text-gray-500 transition hover:bg-gray-100"
+          >
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M4 6h16M4 12h16M4 18h16"
+              />
+            </svg>
+          </button>
+          <img
+            src="/image/logo.png"
+            alt="Logo"
+            className="h-7 w-auto object-contain"
+          />
+          <span className="text-sm font-bold text-gray-800">Admin</span>
+        </header>
+
+        {/* Page content */}
+        <main className="flex-1 overflow-auto">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }

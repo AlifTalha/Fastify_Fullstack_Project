@@ -16,7 +16,10 @@ const blogController = {
   },
 
   async getPublicPostBySlug(request, reply) {
-    const post = await blogService.getPublicPostBySlug(request.params.slug);
+    const post = await blogService.getPublicPostBySlug(
+      request.params.slug,
+      request.user?.role,
+    );
     return reply.code(200).send({ success: true, data: post });
   },
 

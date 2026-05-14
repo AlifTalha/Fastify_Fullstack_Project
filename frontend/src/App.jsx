@@ -13,6 +13,9 @@ import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 
+// Home page
+import HomePage from "./pages/HomePage";
+
 // Shop pages
 import ShopPage from "./pages/shop/ShopPage";
 import ProductDetailPage from "./pages/shop/ProductDetailPage";
@@ -70,7 +73,7 @@ export default function App() {
         {/* Main layout */}
         <Route element={<MainLayout />}>
           {/* Public */}
-          <Route index element={<ShopPage />} />
+          <Route index element={<HomePage />} />
           <Route path="/shop" element={<ShopPage />} />
           <Route path="/shop/:id" element={<ProductDetailPage />} />
           <Route path="/blog" element={<BlogPage />} />
