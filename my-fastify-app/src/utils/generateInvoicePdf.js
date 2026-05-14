@@ -12,8 +12,8 @@ function generateInvoicePdf(order) {
   const doc = new PDFDocument({ margin: 50, size: "A4" });
 
   const currency = order.currency?.toUpperCase() || "USD";
-  const unitPrice = (order.product.price / 100).toFixed(2);
-  const total = (order.amount / 100).toFixed(2);
+  const unitPrice = Number(order.product.price).toFixed(2);
+  const total = Number(order.amount).toFixed(2);
   const date = new Date(order.createdAt).toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",

@@ -126,7 +126,7 @@ const orderController = {
       success: true,
       stats: {
         ...stats,
-        totalRevenueFormatted: `${(stats.totalRevenueCents / 100).toFixed(2)} USD`,
+        totalRevenueFormatted: `${Number(stats.totalRevenueCents).toFixed(2)} USD`,
       },
     });
   },
@@ -140,21 +140,22 @@ const orderController = {
 
     const filename = `invoice-${order.invoiceNumber}.pdf`;
 
-    reply.hijack();
-    const res = reply.raw;
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-    res.statusCode = 200;
-
-    // Wrap in a Promise — pdfkit is a readable stream, pipe it and wait for finish
-    await new Promise((resolve, reject) => {
+    // Collect PDF bytes into a buffer so Fastify can send it normally
+    // (avoids reply.hijack() which silently swallows pdfkit errors)
+    const pdfBuffer = await new Promise((resolve, reject) => {
       const doc = generateInvoicePdf(order);
-      doc.pipe(res);
-      doc.on("end", resolve);
+      const chunks = [];
+      doc.on("data", (chunk) => chunks.push(chunk));
+      doc.on("end", () => resolve(Buffer.concat(chunks)));
       doc.on("error", reject);
-      res.on("error", reject);
-      doc.end(); // trigger PDF generation
+      doc.end();
     });
+
+    return reply
+      .header("Content-Type", "application/pdf")
+      .header("Content-Disposition", `attachment; filename="${filename}"`)
+      .header("Content-Length", pdfBuffer.length)
+      .send(pdfBuffer);
   },
 };
 

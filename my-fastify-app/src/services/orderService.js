@@ -32,8 +32,9 @@ const orderService = {
     const amount = product.price * quantity;
     const currency = product.currency;
 
+    // Stripe always expects amounts in cents
     const paymentIntent = await stripe.paymentIntents.create({
-      amount,
+      amount: amount * 100,
       currency,
       metadata: { userId, productId, quantity: String(quantity) },
       // Required so pm_card_visa works in test without a return_url
@@ -135,7 +136,8 @@ const orderService = {
         {
           price_data: {
             currency: order.currency,
-            unit_amount: order.product.price,
+            // Stripe requires amount in cents; price is stored as dollars
+            unit_amount: order.product.price * 100,
             product_data: {
               name: order.product.name,
               description: order.product.description || undefined,

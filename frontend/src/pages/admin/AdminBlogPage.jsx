@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 import Swal from "sweetalert2";
 import {
@@ -10,6 +10,7 @@ import {
 } from "../../api/blog";
 
 const STATUS_TABS = ["ALL", "PENDING", "APPROVED", "REJECTED"];
+const LIMIT = 7;
 const BASE =
   import.meta.env.VITE_API_URL?.replace("/api/v1", "") ||
   "http://localhost:3000";
@@ -40,27 +41,42 @@ export default function AdminBlogPage() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("PENDING");
   const [stats, setStats] = useState(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
-  const fetchData = async () => {
+  const totalPages = Math.max(1, Math.ceil(total / LIMIT));
+
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const params = status !== "ALL" ? { status, limit: 20 } : { limit: 20 };
+      const params = {
+        ...(status !== "ALL" ? { status } : {}),
+        page,
+        limit: LIMIT,
+      };
       const [postsRes, statsRes] = await Promise.all([
         adminGetPosts(params),
         getBlogStats(),
       ]);
       setPosts(postsRes.data.posts || postsRes.data.data || []);
+      setTotal(postsRes.data.total ?? postsRes.data.count ?? 0);
       setStats(statsRes.data.data || statsRes.data);
     } catch {
       toast.error("Failed to load posts");
     } finally {
       setLoading(false);
     }
-  };
+  }, [status, page]);
 
   useEffect(() => {
     fetchData();
-  }, [status]);
+  }, [fetchData]);
+
+  // Reset to page 1 when filter changes
+  const handleStatusChange = (s) => {
+    setStatus(s);
+    setPage(1);
+  };
 
   const handleApprove = async (id) => {
     const result = await Swal.fire({
@@ -139,7 +155,12 @@ export default function AdminBlogPage() {
     try {
       await adminDeletePost(id);
       toast.success("Post deleted");
-      setPosts((p) => p.filter((post) => post.id !== id));
+      // If last item on page > 1, go back one page; otherwise reload current page
+      if (posts.length === 1 && page > 1) {
+        setPage((p) => p - 1);
+      } else {
+        fetchData();
+      }
     } catch {
       toast.error("Failed");
     }
@@ -240,7 +261,7 @@ export default function AdminBlogPage() {
                 ? "border-orange-200 bg-orange-100 text-orange-700"
                 : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
             }`}
-            onClick={() => setStatus(s)}
+            onClick={() => handleStatusChange(s)}
           >
             {s}
           </button>
@@ -340,6 +361,94 @@ export default function AdminBlogPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination */}
+          {!loading && posts.length > 0 && (
+            <div className="flex flex-col items-center gap-3 border-t border-gray-100 px-5 py-4 sm:flex-row sm:justify-between">
+              <p className="text-xs text-gray-500">
+                Page <span className="font-semibold text-gray-700">{page}</span>{" "}
+                of{" "}
+                <span className="font-semibold text-gray-700">
+                  {totalPages}
+                </span>{" "}
+                · {total} post{total !== 1 ? "s" : ""}
+              </p>
+              <div className="flex items-center gap-1">
+                <button
+                  disabled={page === 1}
+                  onClick={() => setPage((p) => p - 1)}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition hover:border-orange-300 hover:text-orange-600 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <svg
+                    className="h-3.5 w-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 19l-7-7 7-7"
+                    />
+                  </svg>
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((n) => {
+                    if (totalPages <= 7) return true;
+                    if (n === 1 || n === totalPages) return true;
+                    if (Math.abs(n - page) <= 1) return true;
+                    return false;
+                  })
+                  .reduce((acc, n, idx, arr) => {
+                    if (idx > 0 && n - arr[idx - 1] > 1) acc.push("…");
+                    acc.push(n);
+                    return acc;
+                  }, [])
+                  .map((item, idx) =>
+                    item === "…" ? (
+                      <span
+                        key={`e-${idx}`}
+                        className="flex h-8 w-8 items-center justify-center text-xs text-gray-400"
+                      >
+                        …
+                      </span>
+                    ) : (
+                      <button
+                        key={item}
+                        onClick={() => setPage(item)}
+                        className={`flex h-8 w-8 items-center justify-center rounded-lg border text-xs font-semibold transition ${
+                          page === item
+                            ? "border-orange-400 bg-orange-500 text-white shadow-sm"
+                            : "border-gray-200 bg-white text-gray-600 hover:border-orange-300 hover:text-orange-600"
+                        }`}
+                      >
+                        {item}
+                      </button>
+                    ),
+                  )}
+                <button
+                  disabled={page === totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition hover:border-orange-300 hover:text-orange-600 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <svg
+                    className="h-3.5 w-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
