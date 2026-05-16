@@ -95,6 +95,12 @@ const chatController = {
     return reply.code(200).send({ success: true, data: result });
   },
 
+  /** GET /users — returns all users (except self) for starting conversations */
+  async getChatUsers(request, reply) {
+    const users = await chatService.getChatUsers(request.user.id);
+    return reply.code(200).send({ success: true, data: users });
+  },
+
   /** GET /admin-user — returns the first admin user (authenticated users) */
   async getAdminUser(request, reply) {
     const admin = await chatService.getAdminUser();

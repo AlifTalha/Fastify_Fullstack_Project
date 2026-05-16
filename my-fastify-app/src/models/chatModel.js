@@ -36,13 +36,23 @@ const chatModel = {
     });
   },
 
+  async findChatUsers(excludeId) {
+    return prisma.user.findMany({
+      where: { id: { not: excludeId } },
+      select: { id: true, name: true, email: true, role: true },
+      orderBy: { name: "asc" },
+    });
+  },
+
   async findMyConversations(userId) {
     return prisma.conversation.findMany({
       where: { participants: { some: { userId } } },
       orderBy: { updatedAt: "desc" },
       include: {
         participants: {
-          include: { user: { select: { id: true, name: true, email: true } } },
+          include: {
+            user: { select: { id: true, name: true, email: true, role: true } },
+          },
         },
         messages: {
           orderBy: { createdAt: "desc" },

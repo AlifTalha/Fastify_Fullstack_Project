@@ -138,6 +138,10 @@ const chatService = {
     return !!(onlineUsers[userId] && onlineUsers[userId].size > 0);
   },
 
+  async getChatUsers(excludeId) {
+    return chatModel.findChatUsers(excludeId);
+  },
+
   async getAdminUser() {
     const admin = await chatModel.findFirstAdmin();
     if (!admin) {

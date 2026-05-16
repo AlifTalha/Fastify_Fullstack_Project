@@ -76,6 +76,22 @@ const blogService = {
     return post;
   },
 
+  async incrementPostView(slug) {
+    const post = await blogModel.findPostBySlug(slug);
+    if (!post || post.status !== "APPROVED") return;
+    await blogModel.incrementViews(post.id);
+  },
+
+  async reactToPost(postId, likeDelta, dislikeDelta) {
+    const post = await blogModel.findPostById(postId);
+    if (!post || post.status !== "APPROVED") {
+      const err = new Error("Post not found");
+      err.statusCode = 404;
+      throw err;
+    }
+    return blogModel.reactToPost(postId, likeDelta, dislikeDelta);
+  },
+
   // ── User ───────────────────────────────────────────────────────────────────
 
   async createPost({ userId, fields, fileParts }) {

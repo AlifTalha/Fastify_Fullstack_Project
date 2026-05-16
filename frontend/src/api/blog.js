@@ -9,6 +9,10 @@ export const getPublicPosts = (params) =>
 // Authenticated
 export const getPublicPostBySlug = (slug) =>
   api.get(`${BLOG_BASE}/posts/${slug}`);
+export const incrementPostView = (slug) =>
+  api.post(`${BLOG_BASE}/posts/${slug}/view`);
+export const reactToPost = (id, likeDelta, dislikeDelta) =>
+  api.post(`${BLOG_BASE}/posts/${id}/react`, { likeDelta, dislikeDelta });
 export const createPost = (formData) =>
   api.post(`${BLOG_BASE}/posts`, formData, {
     headers: { "Content-Type": "multipart/form-data" },

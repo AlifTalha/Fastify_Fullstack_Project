@@ -974,7 +974,7 @@ export default function AdminProductsPage() {
                     {fbModal.stats.count} review
                     {fbModal.stats.count !== 1 ? "s" : ""}
                     {fbModal.stats.count > 0
-                      ? ` Â· avg ${fbModal.stats.average} â˜…`
+                      ? ` avg ${fbModal.stats.average}`
                       : ""}
                   </p>
                 )}

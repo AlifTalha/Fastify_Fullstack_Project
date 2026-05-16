@@ -135,11 +135,15 @@ export default function AdminUsersPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-7xl p-6">
-      <div className="mb-6 rounded-2xl border border-gray-200 bg-linear-to-r from-white via-orange-50/40 to-indigo-50/40 p-5 shadow-sm">
+    <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6">
+      {/* Page header */}
+      <div className="mb-6 rounded-2xl border border-gray-200 bg-linear-to-r from-white via-orange-50/40 to-indigo-50/40 p-4 shadow-sm sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+            <p className="text-xs font-bold uppercase tracking-[0.25em] text-orange-500">
+              Admin
+            </p>
+            <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
               Users
             </h1>
             <p className="mt-1 text-sm text-gray-500">
@@ -147,19 +151,81 @@ export default function AdminUsersPage() {
             </p>
           </div>
           <div className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 shadow-xs">
-            Total users:{" "}
-            <span className="font-semibold text-gray-900">{total}</span>
+            Total: <span className="font-semibold text-gray-900">{total}</span>
           </div>
         </div>
       </div>
 
       {loading ? (
         <div className="flex items-center justify-center py-16 text-gray-400">
-          Loading...
+          <span className="h-6 w-6 animate-spin rounded-full border-2 border-orange-400 border-t-transparent" />
         </div>
       ) : (
         <>
-          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+          {/* ── Mobile cards (< md) ── */}
+          <div className="flex flex-col gap-3 md:hidden">
+            {users.length === 0 ? (
+              <div className="rounded-2xl border border-gray-200 bg-white px-4 py-12 text-center text-sm text-gray-400">
+                No users found.
+              </div>
+            ) : (
+              users.map((u, index) => (
+                <div
+                  key={u.id}
+                  className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700">
+                      {u.name?.charAt(0)?.toUpperCase() || "U"}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-semibold text-gray-900">
+                        {u.name}
+                      </p>
+                      <p className="truncate text-xs text-gray-500">
+                        {u.email}
+                      </p>
+                    </div>
+                    <span
+                      className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${ROLE_BADGE[u.role] || "border border-gray-200 bg-gray-50 text-gray-600"}`}
+                    >
+                      {u.role}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between gap-2">
+                    <p className="text-xs text-gray-400">
+                      #{startingIndex + index + 1} · Joined{" "}
+                      {new Date(u.createdAt).toLocaleDateString()}
+                    </p>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <button
+                        onClick={() => handleView(u.id)}
+                        className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                      >
+                        View
+                      </button>
+                      <button
+                        onClick={() => handleOpenEdit(u.id)}
+                        className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 transition hover:bg-amber-100"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(u.id)}
+                        className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* ── Desktop table (md+) ── */}
+          <div className="hidden overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm md:block">
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead className="border-b border-gray-100 bg-gray-50/80 text-left text-xs uppercase tracking-wide text-gray-500">
@@ -206,7 +272,7 @@ export default function AdminUsersPage() {
                           {new Date(u.createdAt).toLocaleDateString()}
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex flex-wrap items-center gap-2">
+                          <div className="flex items-center gap-2">
                             <button
                               onClick={() => handleView(u.id)}
                               className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 transition-colors hover:bg-indigo-100"
@@ -235,6 +301,7 @@ export default function AdminUsersPage() {
             </div>
           </div>
 
+          {/* Pagination */}
           {totalPages > 1 && (
             <div className="mt-5 flex items-center justify-center gap-3">
               <button

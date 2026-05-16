@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import useAuthStore from "../../store/authStore";
 import {
@@ -9,6 +10,7 @@ import {
   sendMessage,
   markAsRead,
   startOrGetConversation,
+  getChatUsers,
 } from "../../api/chat";
 
 const WS_URL =
@@ -75,8 +77,7 @@ const AVATAR_PALETTES = [
 
 function nameToColorCls(name = "?") {
   let h = 0;
-  for (let i = 0; i < name.length; i++)
-    h = name.charCodeAt(i) + ((h << 5) - h);
+  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
   return AVATAR_PALETTES[Math.abs(h) % AVATAR_PALETTES.length];
 }
 
@@ -145,7 +146,8 @@ function ConvItem({ conv, myId, active, onClick, unread }) {
             unread > 0 ? "font-medium text-gray-600" : "text-gray-400"
           }`}
         >
-          {last?.content || (last?.mediaType ? "?? Attachment" : "No messages yet")}
+          {last?.content ||
+            (last?.mediaType ? "?? Attachment" : "No messages yet")}
         </p>
       </div>
       {unread > 0 && (
@@ -245,6 +247,13 @@ export default function ChatPage() {
   const [unreadMap, setUnreadMap] = useState({});
   const [mobileSidebar, setMobileSidebar] = useState(true);
   const [search, setSearch] = useState("");
+  const [showNewChat, setShowNewChat] = useState(false);
+  const [chatUsers, setChatUsers] = useState([]);
+  const [chatUsersLoading, setChatUsersLoading] = useState(false);
+  const [userSearch, setUserSearch] = useState("");
+
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const wsRef = useRef(null);
   const msgListRef = useRef(null);
@@ -272,10 +281,18 @@ export default function ChatPage() {
     const init = async () => {
       setLoading(true);
       const list = await loadConversations();
-      if (!isAdmin && list.length > 0) setActiveConvId(list[0].id);
+      // Auto-select if redirected from feedback with a specific convId
+      const targetConvId = location.state?.convId;
+      if (targetConvId) {
+        setActiveConvId(targetConvId);
+        setMobileSidebar(false);
+        // clear the state so refresh doesn't re-select
+        navigate(location.pathname, { replace: true, state: {} });
+      }
       setLoading(false);
     };
     init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin, loadConversations]);
 
   useEffect(() => {
@@ -360,12 +377,49 @@ export default function ChatPage() {
         receiverId: admin.id,
       });
       const conv = convData.data || convData;
-      setConversations((prev) => [conv, ...prev.filter((c) => c.id !== conv.id)]);
+      setConversations((prev) => [
+        conv,
+        ...prev.filter((c) => c.id !== conv.id),
+      ]);
       setActiveConvId(conv.id);
+      setMobileSidebar(false);
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to connect");
     } finally {
       setContacting(false);
+    }
+  };
+
+  const handleOpenNewChat = async () => {
+    setShowNewChat(true);
+    setUserSearch("");
+    if (chatUsers.length) return; // already loaded
+    setChatUsersLoading(true);
+    try {
+      const { data } = await getChatUsers();
+      setChatUsers(data.data || []);
+    } catch {
+      toast.error("Failed to load users");
+    } finally {
+      setChatUsersLoading(false);
+    }
+  };
+
+  const handleStartChatWith = async (receiverId) => {
+    try {
+      const { data } = await startOrGetConversation({ receiverId });
+      const conv = data.data || data;
+      setConversations((prev) => [
+        conv,
+        ...prev.filter((c) => c.id !== conv.id),
+      ]);
+      setActiveConvId(conv.id);
+      setMobileSidebar(false);
+      setShowNewChat(false);
+    } catch (err) {
+      toast.error(
+        err.response?.data?.message || "Failed to start conversation",
+      );
     }
   };
 
@@ -410,9 +464,7 @@ export default function ChatPage() {
 
   const filteredConvs = search
     ? conversations.filter((c) =>
-        getOtherName(c, user?.id)
-          .toLowerCase()
-          .includes(search.toLowerCase()),
+        getOtherName(c, user?.id).toLowerCase().includes(search.toLowerCase()),
       )
     : conversations;
 
@@ -431,60 +483,81 @@ export default function ChatPage() {
 
   // -- Render ------------------------------------------------------------------
 
-  return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      {loading ? (
-        <div className="flex flex-1 items-center justify-center">
-          <div className="flex flex-col items-center gap-3 text-gray-400">
-            <span className="h-7 w-7 animate-spin rounded-full border-2 border-orange-500 border-t-transparent" />
-            <p className="text-xs">Loading�</p>
-          </div>
-        </div>
-      ) : (
-        <div className="flex min-h-0 flex-1 overflow-hidden">
-          {/* -- Admin sidebar ------------------------------------------------ */}
-          {isAdmin && (
-            <aside
-              className={`flex shrink-0 flex-col border-r border-gray-200 bg-white w-full sm:w-72 ${mobileSidebar ? "flex" : "hidden"} sm:flex`}
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-100">
-                    <svg
-                      className="h-5 w-5 text-orange-600"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                      />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-gray-900">Inbox</p>
-                    <p className="text-[11px] text-gray-400">
-                      {conversations.length} conversation
-                      {conversations.length !== 1 ? "s" : ""}
-                    </p>
-                  </div>
-                </div>
-                {totalUnread > 0 && (
-                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-orange-500 px-1.5 text-[10px] font-bold text-white">
-                    {totalUnread > 99 ? "99+" : totalUnread}
-                  </span>
-                )}
-              </div>
+  if (loading) {
+    return (
+      <div className="flex h-[calc(100dvh-4rem)] items-center justify-center bg-gray-50">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-orange-500 border-t-transparent" />
+      </div>
+    );
+  }
 
-              {/* Search */}
-              <div className="px-3 py-2.5">
-                <label className="flex items-center gap-2 rounded-xl bg-gray-50 px-3 py-2 ring-1 ring-gray-200 transition focus-within:ring-orange-400">
+  // ---- ADMIN LAYOUT ----
+  // Rendered inside AdminLayout's <main class="flex flex-1 flex-col overflow-hidden">
+  if (isAdmin) {
+    return (
+      <div className="flex h-full overflow-hidden">
+        {/* Conversation sidebar — full-width on mobile when active, fixed w-72 on lg+ */}
+        <aside
+          className={`${
+            mobileSidebar ? "flex" : "hidden"
+          } w-full flex-col border-r border-gray-200 bg-white lg:flex lg:w-72 lg:shrink-0`}
+        >
+          <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-3">
+            <h2 className="flex-1 text-base font-bold text-gray-800">
+              Support Inbox
+            </h2>
+            {totalUnread > 0 && (
+              <span className="rounded-full bg-orange-500 px-2 py-0.5 text-xs font-bold text-white">
+                {totalUnread}
+              </span>
+            )}
+          </div>
+          <div className="px-3 py-2">
+            <input
+              type="text"
+              placeholder="Search..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-200"
+            />
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            {filteredConvs.length === 0 ? (
+              <p className="px-4 py-6 text-center text-sm text-gray-400">
+                No conversations
+              </p>
+            ) : (
+              filteredConvs.map((conv) => (
+                <ConvItem
+                  key={conv.id}
+                  conv={conv}
+                  myId={user?.id}
+                  active={conv.id === activeConvId}
+                  unread={unreadMap[conv.id] || 0}
+                  onClick={() => handleSelectConv(conv.id)}
+                />
+              ))
+            )}
+          </div>
+        </aside>
+
+        {/* Chat pane — hidden on mobile when sidebar is open, flex-1 on lg+ */}
+        <div
+          className={`${
+            !mobileSidebar ? "flex" : "hidden"
+          } flex-1 flex-col overflow-hidden lg:flex`}
+        >
+          {activeConvId ? (
+            <>
+              {/* Header with back button on mobile */}
+              <div className="flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-3 shadow-sm">
+                <button
+                  onClick={() => setMobileSidebar(true)}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-500 transition hover:bg-gray-100 lg:hidden"
+                  aria-label="Back to conversations"
+                >
                   <svg
-                    className="h-3.5 w-3.5 shrink-0 text-gray-400"
+                    className="h-5 w-5"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -493,300 +566,462 @@ export default function ChatPage() {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      d="M15 19l-7-7 7-7"
                     />
                   </svg>
-                  <input
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search conversations�"
-                    className="flex-1 bg-transparent text-xs text-gray-700 outline-none placeholder:text-gray-400"
-                  />
-                </label>
+                </button>
+                <Avatar name={otherName} size="md" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold text-gray-800">
+                    {otherName}
+                  </p>
+                  <p className="text-xs text-gray-400">User</p>
+                </div>
               </div>
-
-              {/* Conversation list */}
-              <div className="flex-1 overflow-y-auto">
-                {filteredConvs.length === 0 ? (
-                  <div className="flex flex-col items-center gap-2 px-4 py-12 text-center">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
-                      <svg
-                        className="h-5 w-5 text-gray-400"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.5}
-                          d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                        />
-                      </svg>
-                    </div>
-                    <p className="text-xs font-medium text-gray-500">
-                      No conversations
-                    </p>
-                    <p className="text-[11px] text-gray-400">
-                      {search
-                        ? "No results for your search"
-                        : "Users will appear here when they reach out"}
-                    </p>
+              {/* Messages */}
+              <div
+                ref={msgListRef}
+                className="flex-1 space-y-3 overflow-y-auto bg-gray-50 px-4 py-4 sm:px-6"
+              >
+                {msgLoading ? (
+                  <div className="flex justify-center py-8">
+                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-orange-500 border-t-transparent" />
                   </div>
+                ) : messageGroups.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-gray-400">
+                    No messages yet
+                  </p>
                 ) : (
-                  <div className="py-1">
-                    {filteredConvs.map((conv) => (
-                      <ConvItem
-                        key={conv.id}
-                        conv={conv}
-                        myId={user?.id}
-                        active={conv.id === activeConvId}
-                        unread={unreadMap[conv.id] || 0}
-                        onClick={() => handleSelectConv(conv.id)}
-                      />
-                    ))}
-                  </div>
+                  messageGroups.map((group) => (
+                    <div key={group.dateKey}>
+                      <DateSeparator label={group.label} />
+                      <div className="space-y-2">
+                        {group.msgs.map((msg, i) => (
+                          <MessageBubble
+                            key={msg.id}
+                            msg={msg}
+                            isMe={msg.senderId === user?.id}
+                            showName={
+                              i === 0 ||
+                              group.msgs[i - 1]?.senderId !== msg.senderId
+                            }
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))
                 )}
               </div>
-            </aside>
-          )}
-
-          {/* -- Chat pane ---------------------------------------------------- */}
-          <div
-            className={`flex flex-1 flex-col overflow-hidden bg-gray-50 ${
-              isAdmin && mobileSidebar ? "hidden sm:flex" : "flex"
-            }`}
-          >
-            {activeConvId ? (
-              <>
-                {/* Chat header */}
-                <div className="flex shrink-0 items-center gap-3 border-b border-gray-200 bg-white px-4 py-3 shadow-sm">
-                  {isAdmin && (
-                    <button
-                      onClick={() => setMobileSidebar(true)}
-                      aria-label="Back to inbox"
-                      className="-ml-1 mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-gray-500 transition hover:bg-gray-100 sm:hidden"
-                    >
-                      <svg
-                        className="h-5 w-5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15 19l-7-7 7-7"
-                        />
-                      </svg>
-                    </button>
-                  )}
-                  <Avatar name={otherName} online size="lg" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-bold text-gray-900">
-                      {otherName}
-                    </p>
-                    <p className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-500">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                      Active now
-                    </p>
-                  </div>
-                </div>
-
-                {/* Messages */}
-                <div
-                  ref={msgListRef}
-                  className="flex-1 overflow-y-auto px-4 py-4"
-                >
-                  {msgLoading ? (
-                    <div className="flex h-full items-center justify-center">
-                      <span className="h-6 w-6 animate-spin rounded-full border-2 border-orange-400 border-t-transparent" />
-                    </div>
-                  ) : messages.length === 0 ? (
-                    <div className="flex h-full flex-col items-center justify-center gap-2">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-sm">
-                        <svg
-                          className="h-6 w-6 text-gray-300"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={1.5}
-                            d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                          />
-                        </svg>
-                      </div>
-                      <p className="text-xs text-gray-400">
-                        No messages yet � say hello! ??
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-1">
-                      {messageGroups.map((group) => (
-                        <div key={group.dateKey}>
-                          <DateSeparator label={group.label} />
-                          <div className="flex flex-col gap-2.5">
-                            {group.msgs.map((msg, i) => {
-                              const globalIdx = messages.indexOf(msg);
-                              const isMe = msg.senderId === user?.id;
-                              const prevMsg = messages[globalIdx - 1];
-                              const showName =
-                                isAdmin &&
-                                !isMe &&
-                                (globalIdx === 0 ||
-                                  prevMsg?.senderId !== msg.senderId);
-                              return (
-                                <MessageBubble
-                                  key={msg.id || i}
-                                  msg={msg}
-                                  isMe={isMe}
-                                  showName={showName}
-                                />
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Input bar */}
-                <div className="shrink-0 border-t border-gray-200 bg-white px-4 py-3">
-                  <form onSubmit={handleSend} className="flex items-end gap-2">
-                    <label className="flex flex-1 items-end rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 transition focus-within:border-orange-400 focus-within:ring-2 focus-within:ring-orange-100">
-                      <textarea
-                        ref={inputRef}
-                        value={text}
-                        onChange={(e) => setText(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        placeholder="Type a message�"
-                        rows={1}
-                        className="flex-1 resize-none bg-transparent text-sm text-gray-800 outline-none placeholder:text-gray-400"
-                        style={{ maxHeight: "100px", overflowY: "auto" }}
-                        onInput={(e) => {
-                          e.target.style.height = "auto";
-                          e.target.style.height = `${Math.min(e.target.scrollHeight, 100)}px`;
-                        }}
-                      />
-                    </label>
-                    <button
-                      type="submit"
-                      disabled={!text.trim() || sending}
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-orange-500 text-white shadow-sm shadow-orange-200 transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      {sending ? (
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                      ) : (
-                        <svg
-                          className="h-4 w-4 translate-x-px"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                          />
-                        </svg>
-                      )}
-                    </button>
-                  </form>
-                  <p className="mt-1.5 text-center text-[10px] text-gray-300">
-                    Enter to send � Shift+Enter for new line
-                  </p>
-                </div>
-              </>
-            ) : isAdmin ? (
-              /* Admin: no conversation selected */
-              <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-50">
-                  <svg
-                    className="h-8 w-8 text-orange-400"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.5}
-                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                    />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-base font-bold text-gray-800">
-                    Select a conversation
-                  </p>
-                  <p className="mt-1 text-sm text-gray-400">
-                    Choose a user from the inbox to view their messages
-                  </p>
-                </div>
-              </div>
-            ) : (
-              /* User: contact support */
-              <div className="flex h-full flex-col items-center justify-center gap-5 p-8 text-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-50">
-                  <svg
-                    className="h-8 w-8 text-indigo-400"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.5}
-                      d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"
-                    />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-gray-800">
-                    Need help?
-                  </h3>
-                  <p className="mt-1 text-sm text-gray-500">
-                    Our support team is online and ready to assist you.
-                  </p>
-                </div>
+              {/* Input */}
+              <form
+                onSubmit={handleSend}
+                className="flex items-end gap-2 border-t border-gray-200 bg-white px-4 py-3"
+              >
+                <textarea
+                  ref={inputRef}
+                  rows={1}
+                  value={text}
+                  onChange={(e) => {
+                    setText(e.target.value);
+                    e.target.style.height = "auto";
+                    e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+                  }}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Type a message…"
+                  className="flex-1 resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-200"
+                />
                 <button
-                  onClick={handleContactAdmin}
-                  disabled={contacting}
-                  className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-50"
+                  type="submit"
+                  disabled={sending || !text.trim()}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-500 text-white transition hover:bg-orange-600 disabled:opacity-50"
                 >
-                  {contacting ? (
-                    <>
-                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                      Connecting�
-                    </>
+                  {sending ? (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                   ) : (
-                    <>
-                      <svg
-                        className="h-4 w-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                        />
-                      </svg>
-                      Start Chat with Support
-                    </>
+                    <svg
+                      className="h-5 w-5 rotate-90"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                      />
+                    </svg>
                   )}
                 </button>
+              </form>
+            </>
+          ) : (
+            <div className="flex flex-1 flex-col items-center justify-center gap-3 bg-gray-50 p-6 text-center">
+              <p className="font-medium text-gray-500">
+                No conversation selected
+              </p>
+              <button
+                onClick={() => setMobileSidebar(true)}
+                className="text-sm text-orange-500 underline-offset-2 hover:underline lg:hidden"
+              >
+                View all conversations
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ---- USER LAYOUT ----
+  // Same two-pane design as admin: sidebar + chat pane, mobile-toggled
+  // Rendered inside MainLayout (sticky h-16 navbar) → available height = 100dvh - 4rem
+
+  const filteredChatUsers = userSearch
+    ? chatUsers.filter(
+        (u) =>
+          u.name?.toLowerCase().includes(userSearch.toLowerCase()) ||
+          u.email?.toLowerCase().includes(userSearch.toLowerCase()),
+      )
+    : chatUsers;
+
+  const otherParticipant = activeConv
+    ? getOtherParticipant(activeConv, user?.id)
+    : null;
+  const otherIsAdmin = otherParticipant?.user?.role === "ADMIN";
+
+  return (
+    <div className="flex h-[calc(100dvh-4rem)] overflow-hidden">
+      {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
+      <aside
+        className={`${
+          mobileSidebar ? "flex" : "hidden"
+        } w-full flex-col border-r border-gray-200 bg-white sm:flex sm:w-72 sm:shrink-0`}
+      >
+        {/* Header */}
+        <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-3">
+          <h2 className="flex-1 text-base font-bold text-gray-800">Messages</h2>
+          {totalUnread > 0 && (
+            <span className="rounded-full bg-orange-500 px-2 py-0.5 text-xs font-bold text-white">
+              {totalUnread}
+            </span>
+          )}
+          {/* New Chat button */}
+          <button
+            onClick={handleOpenNewChat}
+            title="New conversation"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition hover:bg-orange-50 hover:text-orange-500"
+          >
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+          </button>
+        </div>
+
+        {/* Search */}
+        <div className="px-3 py-2">
+          <input
+            type="text"
+            placeholder="Search conversations..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-200"
+          />
+        </div>
+
+        {/* Conversation list */}
+        <div className="flex-1 overflow-y-auto">
+          {filteredConvs.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 px-4 py-10 text-center">
+              <p className="text-sm text-gray-400">No conversations yet</p>
+              <button
+                onClick={handleOpenNewChat}
+                className="rounded-lg bg-orange-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-orange-600"
+              >
+                Start a conversation
+              </button>
+            </div>
+          ) : (
+            filteredConvs.map((conv) => (
+              <ConvItem
+                key={conv.id}
+                conv={conv}
+                myId={user?.id}
+                active={conv.id === activeConvId}
+                unread={unreadMap[conv.id] || 0}
+                onClick={() => handleSelectConv(conv.id)}
+              />
+            ))
+          )}
+        </div>
+
+        {/* Chat with Support quick link */}
+        <div className="border-t border-gray-100 px-3 py-2">
+          <button
+            onClick={handleContactAdmin}
+            disabled={contacting}
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-500 transition hover:bg-orange-50 hover:text-orange-600 disabled:opacity-60"
+          >
+            <svg
+              className="h-4 w-4 shrink-0"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"
+              />
+            </svg>
+            {contacting ? "Connecting…" : "Chat with Support"}
+          </button>
+        </div>
+      </aside>
+
+      {/* ── Chat Pane ───────────────────────────────────────────────────────── */}
+      <div
+        className={`${
+          !mobileSidebar ? "flex" : "hidden"
+        } flex-1 flex-col overflow-hidden sm:flex`}
+      >
+        {activeConvId ? (
+          <>
+            {/* Header */}
+            <div className="flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-3 shadow-sm">
+              <button
+                onClick={() => setMobileSidebar(true)}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-500 transition hover:bg-gray-100 sm:hidden"
+                aria-label="Back"
+              >
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 19l-7-7 7-7"
+                  />
+                </svg>
+              </button>
+              <Avatar name={otherName} size="md" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold text-gray-800">
+                  {otherName}
+                  {otherIsAdmin && (
+                    <span className="ml-2 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-600">
+                      Support
+                    </span>
+                  )}
+                </p>
               </div>
-            )}
+            </div>
+
+            {/* Messages */}
+            <div
+              ref={msgListRef}
+              className="flex-1 space-y-3 overflow-y-auto bg-gray-50 px-4 py-4 sm:px-5"
+            >
+              {msgLoading ? (
+                <div className="flex justify-center py-8">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-orange-500 border-t-transparent" />
+                </div>
+              ) : messageGroups.length === 0 ? (
+                <p className="py-8 text-center text-sm text-gray-400">
+                  No messages yet. Say hello!
+                </p>
+              ) : (
+                messageGroups.map((group) => (
+                  <div key={group.dateKey}>
+                    <DateSeparator label={group.label} />
+                    <div className="space-y-2">
+                      {group.msgs.map((msg, i) => (
+                        <MessageBubble
+                          key={msg.id}
+                          msg={msg}
+                          isMe={msg.senderId === user?.id}
+                          showName={
+                            i === 0 ||
+                            group.msgs[i - 1]?.senderId !== msg.senderId
+                          }
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Input */}
+            <form
+              onSubmit={handleSend}
+              className="flex items-end gap-2 border-t border-gray-100 bg-white px-4 py-3 sm:px-5"
+            >
+              <textarea
+                ref={inputRef}
+                rows={1}
+                value={text}
+                onChange={(e) => {
+                  setText(e.target.value);
+                  e.target.style.height = "auto";
+                  e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+                }}
+                onKeyDown={handleKeyDown}
+                placeholder="Type a message…"
+                className="flex-1 resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-200"
+              />
+              <button
+                type="submit"
+                disabled={sending || !text.trim()}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-500 text-white transition hover:bg-orange-600 disabled:opacity-50"
+              >
+                {sending ? (
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                ) : (
+                  <svg
+                    className="h-5 w-5 rotate-90"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                    />
+                  </svg>
+                )}
+              </button>
+            </form>
+          </>
+        ) : (
+          /* No conversation selected — desktop empty state */
+          <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-gray-50 p-6 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-orange-50 text-orange-400">
+              <svg
+                className="h-8 w-8"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                />
+              </svg>
+            </div>
+            <div>
+              <p className="font-semibold text-gray-700">
+                Select a conversation
+              </p>
+              <p className="mt-1 text-sm text-gray-400">
+                Or start a new one with someone
+              </p>
+            </div>
+            <button
+              onClick={handleOpenNewChat}
+              className="rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-600"
+            >
+              New Conversation
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ── New Chat Modal ───────────────────────────────────────────────────── */}
+      {showNewChat && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4">
+          <div className="flex w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl">
+            {/* Modal header */}
+            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+              <h3 className="text-base font-bold text-gray-800">
+                New Conversation
+              </h3>
+              <button
+                onClick={() => setShowNewChat(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+              >
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            {/* Search */}
+            <div className="px-4 py-3">
+              <input
+                type="text"
+                autoFocus
+                placeholder="Search by name or email…"
+                value={userSearch}
+                onChange={(e) => setUserSearch(e.target.value)}
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-200"
+              />
+            </div>
+
+            {/* User list */}
+            <div className="max-h-72 overflow-y-auto pb-2">
+              {chatUsersLoading ? (
+                <div className="flex justify-center py-8">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-orange-500 border-t-transparent" />
+                </div>
+              ) : filteredChatUsers.length === 0 ? (
+                <p className="py-8 text-center text-sm text-gray-400">
+                  No users found
+                </p>
+              ) : (
+                filteredChatUsers.map((u) => (
+                  <button
+                    key={u.id}
+                    onClick={() => handleStartChatWith(u.id)}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-orange-50"
+                  >
+                    <Avatar name={u.name || u.email || "?"} size="md" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-gray-800">
+                        {u.name || "Unnamed"}
+                        {u.role === "ADMIN" && (
+                          <span className="ml-2 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-600">
+                            Support
+                          </span>
+                        )}
+                      </p>
+                      <p className="truncate text-xs text-gray-400">
+                        {u.email}
+                      </p>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}

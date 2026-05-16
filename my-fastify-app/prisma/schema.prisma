@@ -148,6 +148,9 @@ model BlogPost {
   pdfUrl      String?
   videoLink   String?
   status      BlogStatus    @default(PENDING)
+  views       Int           @default(0)
+  likes       Int           @default(0)
+  dislikes    Int           @default(0)
   comments    BlogComment[]
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt

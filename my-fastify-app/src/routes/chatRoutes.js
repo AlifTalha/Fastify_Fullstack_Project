@@ -49,6 +49,13 @@ async function chatRoutes(fastify) {
     chatController.uploadMedia,
   );
 
+  // ── User list for new conversations ─────────────────────────────────────
+  fastify.get(
+    "/users",
+    { preHandler: [fastify.authenticate] },
+    chatController.getChatUsers,
+  );
+
   // ── Admin endpoints ────────────────────────────────────────────────────────
   fastify.get(
     "/admin-user",

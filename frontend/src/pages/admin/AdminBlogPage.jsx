@@ -11,6 +11,100 @@ import {
 
 const STATUS_TABS = ["ALL", "PENDING", "APPROVED", "REJECTED"];
 const LIMIT = 7;
+
+const statusBadge = (s) =>
+  s === "APPROVED"
+    ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
+    : s === "REJECTED"
+      ? "border border-rose-200 bg-rose-50 text-rose-700"
+      : "border border-amber-200 bg-amber-50 text-amber-700";
+
+function PaginationBar({ page, totalPages, total, setPage }) {
+  if (total === 0) return null;
+  return (
+    <div className="flex flex-col items-center gap-3 border-t border-gray-100 px-5 py-4 sm:flex-row sm:justify-between">
+      <p className="text-xs text-gray-500">
+        Page <span className="font-semibold text-gray-700">{page}</span> of{" "}
+        <span className="font-semibold text-gray-700">{totalPages}</span> ·{" "}
+        {total} post{total !== 1 ? "s" : ""}
+      </p>
+      <div className="flex items-center gap-1">
+        <button
+          disabled={page === 1}
+          onClick={() => setPage((p) => p - 1)}
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition hover:border-orange-300 hover:text-orange-600 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <svg
+            className="h-3.5 w-3.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 19l-7-7 7-7"
+            />
+          </svg>
+        </button>
+        {Array.from({ length: totalPages }, (_, i) => i + 1)
+          .filter((n) => {
+            if (totalPages <= 7) return true;
+            if (n === 1 || n === totalPages) return true;
+            if (Math.abs(n - page) <= 1) return true;
+            return false;
+          })
+          .reduce((acc, n, idx, arr) => {
+            if (idx > 0 && n - arr[idx - 1] > 1) acc.push("…");
+            acc.push(n);
+            return acc;
+          }, [])
+          .map((item, idx) =>
+            item === "…" ? (
+              <span
+                key={`e-${idx}`}
+                className="flex h-8 w-8 items-center justify-center text-xs text-gray-400"
+              >
+                …
+              </span>
+            ) : (
+              <button
+                key={item}
+                onClick={() => setPage(item)}
+                className={`flex h-8 w-8 items-center justify-center rounded-lg border text-xs font-semibold transition ${
+                  page === item
+                    ? "border-orange-400 bg-orange-500 text-white shadow-sm"
+                    : "border-gray-200 bg-white text-gray-600 hover:border-orange-300 hover:text-orange-600"
+                }`}
+              >
+                {item}
+              </button>
+            ),
+          )}
+        <button
+          disabled={page === totalPages}
+          onClick={() => setPage((p) => p + 1)}
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition hover:border-orange-300 hover:text-orange-600 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <svg
+            className="h-3.5 w-3.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 5l7 7-7 7"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
 const BASE =
   import.meta.env.VITE_API_URL?.replace("/api/v1", "") ||
   "http://localhost:3000";
@@ -213,50 +307,48 @@ export default function AdminBlogPage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mb-6 overflow-hidden rounded-3xl border border-gray-200 bg-linear-to-br from-white via-orange-50/30 to-indigo-50/40 p-6 shadow-sm">
-        <div className="flex flex-col gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-orange-500">
-              Moderation
-            </p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight text-gray-900">
-              Blog Dashboard
-            </h1>
-            <p className="mt-2 text-sm text-gray-600">
-              Approve, reject, and manage blog posts from one dashboard.
-            </p>
-          </div>
+      {/* Header + Stats */}
+      <div className="mb-6 overflow-hidden rounded-3xl border border-gray-200 bg-linear-to-br from-white via-orange-50/30 to-indigo-50/40 p-5 shadow-sm sm:p-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-orange-500">
+          Moderation
+        </p>
+        <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+          Blog Dashboard
+        </h1>
+        <p className="mt-1.5 text-sm text-gray-500">
+          Approve, reject, and manage blog posts from one place.
+        </p>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            {[
-              { label: "Total", value: stats?.total ?? 0 },
-              { label: "Pending", value: stats?.pending ?? 0 },
-              { label: "Approved", value: stats?.approved ?? 0 },
-              { label: "Rejected", value: stats?.rejected ?? 0 },
-              { label: "Latest", value: stats?.latest?.length ?? 0 },
-            ].map((item) => (
-              <div
-                key={item.label}
-                className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white px-4 py-4 text-center shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-              >
-                <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-linear-to-r from-orange-300 via-orange-400 to-amber-300" />
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-                  {item.label}
-                </p>
-                <p className="mt-2 text-3xl font-extrabold leading-none text-gray-900">
-                  {item.value}
-                </p>
-              </div>
-            ))}
-          </div>
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          {[
+            { label: "Total", value: stats?.total ?? 0 },
+            { label: "Pending", value: stats?.pending ?? 0 },
+            { label: "Approved", value: stats?.approved ?? 0 },
+            { label: "Rejected", value: stats?.rejected ?? 0 },
+            { label: "Latest", value: stats?.latest?.length ?? 0 },
+          ].map((item) => (
+            <div
+              key={item.label}
+              className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white px-4 py-4 text-center shadow-sm"
+            >
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-linear-to-r from-orange-300 via-orange-400 to-amber-300" />
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                {item.label}
+              </p>
+              <p className="mt-1.5 text-2xl font-extrabold leading-none text-gray-900 sm:text-3xl">
+                {item.value}
+              </p>
+            </div>
+          ))}
         </div>
       </div>
 
-      <div className="mb-5 flex flex-wrap items-center gap-2 overflow-x-auto pb-1">
+      {/* Status Tabs */}
+      <div className="mb-4 flex flex-wrap gap-2">
         {STATUS_TABS.map((s) => (
           <button
             key={s}
-            className={`rounded-full border px-4 py-2 text-xs font-semibold transition-colors ${
+            className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition-colors ${
               status === s
                 ? "border-orange-200 bg-orange-100 text-orange-700"
                 : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
@@ -269,187 +361,205 @@ export default function AdminBlogPage() {
       </div>
 
       {loading ? (
-        <div className="page-loader">Loading...</div>
+        <div className="flex items-center justify-center py-20 text-gray-400">
+          Loading...
+        </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="border-b border-gray-100 bg-gray-50/80 text-left text-xs uppercase tracking-wide text-gray-500">
-                <tr>
-                  <th className="px-4 py-3">Title</th>
-                  <th className="px-4 py-3">Author</th>
-                  <th className="px-4 py-3">Category</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Created</th>
-                  <th className="px-4 py-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {posts.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="px-4 py-10 text-center text-gray-400"
-                    >
-                      No posts found.
-                    </td>
-                  </tr>
-                ) : (
-                  posts.map((post) => (
-                    <tr key={post.id} className="hover:bg-orange-50/30">
-                      <td className="px-4 py-3">
-                        <div className="max-w-md">
-                          <p className="font-semibold text-gray-900">
-                            {post.title}
-                          </p>
-                          <p className="mt-1 line-clamp-1 text-xs text-gray-500">
-                            {post.slug}
-                          </p>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-gray-700">
+        <>
+          {/* ── Mobile cards (< md) ── */}
+          <div className="flex flex-col gap-3 md:hidden">
+            {posts.length === 0 ? (
+              <div className="rounded-2xl border border-gray-200 bg-white px-4 py-12 text-center text-sm text-gray-400">
+                No posts found.
+              </div>
+            ) : (
+              posts.map((post) => (
+                <div
+                  key={post.id}
+                  className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm"
+                >
+                  <div className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-semibold text-gray-900">
+                          {post.title}
+                        </p>
+                        <p className="mt-0.5 truncate text-xs text-gray-400">
+                          {post.slug}
+                        </p>
+                      </div>
+                      <span
+                        className={`inline-flex shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${statusBadge(post.status)}`}
+                      >
+                        {post.status}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+                      <span>
+                        <span className="font-medium text-gray-700">
+                          Author:
+                        </span>{" "}
                         {post.user?.name || post.author?.name || "Unknown"}
-                      </td>
-                      <td className="px-4 py-3 text-gray-600">
-                        {post.category}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${post.status === "APPROVED" ? "border border-emerald-200 bg-emerald-50 text-emerald-700" : post.status === "REJECTED" ? "border border-rose-200 bg-rose-50 text-rose-700" : "border border-amber-200 bg-amber-50 text-amber-700"}`}
-                        >
-                          {post.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-gray-500">
+                      </span>
+                      <span>
+                        <span className="font-medium text-gray-700">
+                          Category:
+                        </span>{" "}
+                        {post.category || "—"}
+                      </span>
+                      <span>
+                        <span className="font-medium text-gray-700">Date:</span>{" "}
                         {new Date(post.createdAt).toLocaleDateString()}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <button
-                            className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
-                            onClick={() => handleViewPost(post.slug)}
-                          >
-                            View
-                          </button>
-                          {post.status === "PENDING" && (
-                            <>
-                              <button
-                                className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
-                                onClick={() => handleApprove(post.id)}
-                              >
-                                Approve
-                              </button>
-                              <button
-                                className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-100"
-                                onClick={() => handleReject(post.id)}
-                              >
-                                Reject
-                              </button>
-                            </>
-                          )}
-                          <button
-                            className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100"
-                            onClick={() => handleDelete(post.id)}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 border-t border-gray-100 bg-gray-50/50 px-4 py-3">
+                    <button
+                      className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
+                      onClick={() => handleViewPost(post.slug)}
+                    >
+                      View
+                    </button>
+                    {post.status === "PENDING" && (
+                      <>
+                        <button
+                          className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                          onClick={() => handleApprove(post.id)}
+                        >
+                          Approve
+                        </button>
+                        <button
+                          className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100"
+                          onClick={() => handleReject(post.id)}
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
+                    <button
+                      className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                      onClick={() => handleDelete(post.id)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+            {/* Mobile pagination */}
+            {posts.length > 0 && (
+              <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
+                <PaginationBar
+                  page={page}
+                  totalPages={totalPages}
+                  total={total}
+                  setPage={setPage}
+                />
+              </div>
+            )}
           </div>
 
-          {/* Pagination */}
-          {!loading && posts.length > 0 && (
-            <div className="flex flex-col items-center gap-3 border-t border-gray-100 px-5 py-4 sm:flex-row sm:justify-between">
-              <p className="text-xs text-gray-500">
-                Page <span className="font-semibold text-gray-700">{page}</span>{" "}
-                of{" "}
-                <span className="font-semibold text-gray-700">
-                  {totalPages}
-                </span>{" "}
-                · {total} post{total !== 1 ? "s" : ""}
-              </p>
-              <div className="flex items-center gap-1">
-                <button
-                  disabled={page === 1}
-                  onClick={() => setPage((p) => p - 1)}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition hover:border-orange-300 hover:text-orange-600 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  <svg
-                    className="h-3.5 w-3.5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15 19l-7-7 7-7"
-                    />
-                  </svg>
-                </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .filter((n) => {
-                    if (totalPages <= 7) return true;
-                    if (n === 1 || n === totalPages) return true;
-                    if (Math.abs(n - page) <= 1) return true;
-                    return false;
-                  })
-                  .reduce((acc, n, idx, arr) => {
-                    if (idx > 0 && n - arr[idx - 1] > 1) acc.push("…");
-                    acc.push(n);
-                    return acc;
-                  }, [])
-                  .map((item, idx) =>
-                    item === "…" ? (
-                      <span
-                        key={`e-${idx}`}
-                        className="flex h-8 w-8 items-center justify-center text-xs text-gray-400"
+          {/* ── Desktop table (≥ md) ── */}
+          <div className="hidden overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm md:block">
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="border-b border-gray-100 bg-gray-50/80 text-left text-xs uppercase tracking-wide text-gray-500">
+                  <tr>
+                    <th className="px-4 py-3">Title</th>
+                    <th className="px-4 py-3">Author</th>
+                    <th className="px-4 py-3">Category</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Created</th>
+                    <th className="px-4 py-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {posts.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={6}
+                        className="px-4 py-10 text-center text-gray-400"
                       >
-                        …
-                      </span>
-                    ) : (
-                      <button
-                        key={item}
-                        onClick={() => setPage(item)}
-                        className={`flex h-8 w-8 items-center justify-center rounded-lg border text-xs font-semibold transition ${
-                          page === item
-                            ? "border-orange-400 bg-orange-500 text-white shadow-sm"
-                            : "border-gray-200 bg-white text-gray-600 hover:border-orange-300 hover:text-orange-600"
-                        }`}
-                      >
-                        {item}
-                      </button>
-                    ),
+                        No posts found.
+                      </td>
+                    </tr>
+                  ) : (
+                    posts.map((post) => (
+                      <tr key={post.id} className="hover:bg-orange-50/30">
+                        <td className="px-4 py-3">
+                          <div className="max-w-xs lg:max-w-md">
+                            <p className="font-semibold text-gray-900 leading-snug">
+                              {post.title}
+                            </p>
+                            <p className="mt-0.5 line-clamp-1 text-xs text-gray-400">
+                              {post.slug}
+                            </p>
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-gray-700">
+                          {post.user?.name || post.author?.name || "Unknown"}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-gray-600">
+                          {post.category || "—"}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusBadge(post.status)}`}
+                          >
+                            {post.status}
+                          </span>
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-gray-500">
+                          {new Date(post.createdAt).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
+                              onClick={() => handleViewPost(post.slug)}
+                            >
+                              View
+                            </button>
+                            {post.status === "PENDING" && (
+                              <>
+                                <button
+                                  className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                                  onClick={() => handleApprove(post.id)}
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-100"
+                                  onClick={() => handleReject(post.id)}
+                                >
+                                  Reject
+                                </button>
+                              </>
+                            )}
+                            <button
+                              className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                              onClick={() => handleDelete(post.id)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
                   )}
-                <button
-                  disabled={page === totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition hover:border-orange-300 hover:text-orange-600 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  <svg
-                    className="h-3.5 w-3.5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
-                </button>
-              </div>
+                </tbody>
+              </table>
             </div>
-          )}
-        </div>
+            <PaginationBar
+              page={page}
+              totalPages={totalPages}
+              total={total}
+              setPage={setPage}
+            />
+          </div>
+        </>
       )}
     </div>
   );

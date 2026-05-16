@@ -36,6 +36,20 @@ async function blogRoutes(fastify) {
     blogController.getPublicPostBySlug,
   );
 
+  // Record a view (authenticated — prevents anonymous bots)
+  fastify.post(
+    "/posts/:slug/view",
+    { preHandler: [fastify.authenticate] },
+    blogController.incrementPostView,
+  );
+
+  // Like / dislike a post
+  fastify.post(
+    "/posts/:id/react",
+    { preHandler: [fastify.authenticate] },
+    blogController.reactToPost,
+  );
+
   // ── User ───────────────────────────────────────────────────────────────────
   fastify.post(
     "/posts",

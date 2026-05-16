@@ -13,6 +13,9 @@ const POST_SELECT = {
   pdfUrl: true,
   videoLink: true,
   status: true,
+  views: true,
+  likes: true,
+  dislikes: true,
   createdAt: true,
   updatedAt: true,
   user: { select: { id: true, name: true, email: true } },
@@ -63,6 +66,9 @@ const blogModel = {
           slug: true,
           category: true,
           imageUrl: true,
+          views: true,
+          likes: true,
+          dislikes: true,
           createdAt: true,
           user: { select: { id: true, name: true } },
           _count: { select: { comments: true } },
@@ -70,6 +76,40 @@ const blogModel = {
       }),
     ]);
     return { total, posts };
+  },
+
+  async incrementViews(id) {
+    return prisma.blogPost.update({
+      where: { id },
+      data: { views: { increment: 1 } },
+      select: { id: true },
+    });
+  },
+
+  async reactToPost(id, likeDelta, dislikeDelta) {
+    const data = {};
+    if (likeDelta === 1) data.likes = { increment: 1 };
+    else if (likeDelta === -1) data.likes = { decrement: 1 };
+    if (dislikeDelta === 1) data.dislikes = { increment: 1 };
+    else if (dislikeDelta === -1) data.dislikes = { decrement: 1 };
+    return prisma.blogPost.update({
+      where: { id },
+      data,
+      select: { likes: true, dislikes: true },
+    });
+  },
+
+  async reactToPost(id, likeDelta, dislikeDelta) {
+    const data = {};
+    if (likeDelta === 1) data.likes = { increment: 1 };
+    else if (likeDelta === -1) data.likes = { decrement: 1 };
+    if (dislikeDelta === 1) data.dislikes = { increment: 1 };
+    else if (dislikeDelta === -1) data.dislikes = { decrement: 1 };
+    return prisma.blogPost.update({
+      where: { id },
+      data,
+      select: { likes: true, dislikes: true },
+    });
   },
 
   async findPostBySlug(slug) {

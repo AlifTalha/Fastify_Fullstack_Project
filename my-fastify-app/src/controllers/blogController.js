@@ -23,6 +23,21 @@ const blogController = {
     return reply.code(200).send({ success: true, data: post });
   },
 
+  async incrementPostView(request, reply) {
+    await blogService.incrementPostView(request.params.slug);
+    return reply.code(200).send({ success: true });
+  },
+
+  async reactToPost(request, reply) {
+    const { likeDelta = 0, dislikeDelta = 0 } = request.body || {};
+    const result = await blogService.reactToPost(
+      request.params.id,
+      Number(likeDelta),
+      Number(dislikeDelta),
+    );
+    return reply.code(200).send({ success: true, data: result });
+  },
+
   // ── User: create post (multipart) ──────────────────────────────────────────
 
   async createPost(request, reply) {

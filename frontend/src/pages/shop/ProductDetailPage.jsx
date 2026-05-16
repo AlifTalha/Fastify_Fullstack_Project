@@ -8,6 +8,7 @@ import {
   submitFeedback,
   deleteFeedback,
 } from "../../api/shop";
+import { startOrGetConversation } from "../../api/chat";
 import useAuthStore from "../../store/authStore";
 
 const BASE =
@@ -47,6 +48,7 @@ function Stars({ value, size = "sm", interactive = false, onChange }) {
 // ─── Feedback Section ─────────────────────────────────────────────────────────
 function FeedbackSection({ productId }) {
   const { isAuthenticated, user } = useAuthStore();
+  const navigate = useNavigate();
   const [feedbacks, setFeedbacks] = useState([]);
   const [stats, setStats] = useState({ average: 0, count: 0 });
   const [loadingFB, setLoadingFB] = useState(true);
@@ -113,6 +115,21 @@ function FeedbackSection({ productId }) {
       await loadFeedback();
     } catch {
       toast.error("Failed to delete review");
+    }
+  };
+
+  const handleChatWithReviewer = async (reviewerId) => {
+    if (!isAuthenticated) {
+      toast.error("Please sign in to chat");
+      navigate("/login");
+      return;
+    }
+    try {
+      const { data } = await startOrGetConversation({ receiverId: reviewerId });
+      const conv = data.data || data;
+      navigate("/chat", { state: { convId: conv.id } });
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to start chat");
     }
   };
 
@@ -240,9 +257,19 @@ function FeedbackSection({ productId }) {
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-600 shrink-0">
-                    {fb.user.name?.[0]?.toUpperCase() || "?"}
-                  </div>
+                  {isAuthenticated && user?.id !== fb.user.id ? (
+                    <button
+                      onClick={() => handleChatWithReviewer(fb.user.id)}
+                      title={`Chat with ${fb.user.name}`}
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-600 shrink-0 transition hover:bg-indigo-200 hover:scale-105 cursor-pointer"
+                    >
+                      {fb.user.name?.[0]?.toUpperCase() || "?"}
+                    </button>
+                  ) : (
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-600 shrink-0">
+                      {fb.user.name?.[0]?.toUpperCase() || "?"}
+                    </div>
+                  )}
                   <div>
                     <p className="text-sm font-semibold text-gray-800">
                       {fb.user.name}
@@ -258,6 +285,28 @@ function FeedbackSection({ productId }) {
                       day: "numeric",
                     })}
                   </span>
+                  {isAuthenticated && user?.id !== fb.user.id && (
+                    <button
+                      onClick={() => handleChatWithReviewer(fb.user.id)}
+                      title={`Chat with ${fb.user.name}`}
+                      className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-indigo-500 transition hover:bg-indigo-50 hover:text-indigo-700"
+                    >
+                      <svg
+                        className="h-3.5 w-3.5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-3 3v-3z"
+                        />
+                      </svg>
+                      Chat
+                    </button>
+                  )}
                   {isAuthenticated && user?.id === fb.user.id && (
                     <button
                       onClick={() => handleDelete(fb.id)}

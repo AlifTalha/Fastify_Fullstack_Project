@@ -14,3 +14,4 @@ export const uploadMedia = (formData) =>
   });
 export const getAdminUser = () => api.get("/chat/admin-user");
 export const getAdminConversations = () => api.get("/chat/admin/conversations");
+export const getChatUsers = () => api.get("/chat/users");

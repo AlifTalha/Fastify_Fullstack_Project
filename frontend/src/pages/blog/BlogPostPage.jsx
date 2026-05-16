@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { useForm } from "react-hook-form";
 import Swal from "sweetalert2";
 import {
   getPublicPostBySlug,
+  incrementPostView,
+  reactToPost,
   addComment,
   editComment,
   deleteComment,
@@ -66,6 +68,10 @@ export default function BlogPostPage() {
   const [editingPost, setEditingPost] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const { user } = useAuthStore();
+  const viewedRef = useRef(false);
+  // local reaction state (no server-side user tracking)
+  const [userReaction, setUserReaction] = useState(null); // "LIKE" | "DISLIKE" | null
+  const [reacting, setReacting] = useState(false);
   const {
     register,
     handleSubmit,
@@ -78,7 +84,20 @@ export default function BlogPostPage() {
     const fetchPost = async () => {
       try {
         const { data } = await getPublicPostBySlug(slug);
-        setPost(data.data || data.post || data);
+        const loadedPost = data.data || data.post || data;
+        setPost(loadedPost);
+        // Restore reaction from localStorage
+        if (user?.id && loadedPost?.id) {
+          const stored = localStorage.getItem(
+            `blog_reaction_${user.id}_${loadedPost.id}`,
+          );
+          if (stored === "LIKE" || stored === "DISLIKE")
+            setUserReaction(stored);
+        }
+        if (!viewedRef.current) {
+          viewedRef.current = true;
+          incrementPostView(slug).catch(() => {});
+        }
       } catch {
         toast.error("Post not found");
       } finally {
@@ -86,6 +105,7 @@ export default function BlogPostPage() {
       }
     };
     fetchPost();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
   const onCommentSubmit = async ({ content }) => {
@@ -347,6 +367,34 @@ export default function BlogPostPage() {
               </span>
               <span>•</span>
               <span>{formatDate(post.createdAt)}</span>
+              {post.views != null && (
+                <>
+                  <span>•</span>
+                  <span className="flex items-center gap-1">
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                      />
+                    </svg>
+                    {post.views.toLocaleString()}{" "}
+                    {post.views === 1 ? "view" : "views"}
+                  </span>
+                </>
+              )}
             </div>
             {user && user.id === post.user?.id && (
               <div className="flex items-center gap-2">
@@ -373,6 +421,260 @@ export default function BlogPostPage() {
               {post.content}
             </div>
           </div>
+
+          {/* ── Like / Dislike ────────────────────────────────────── */}
+          {user && (
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                disabled={reacting}
+                onClick={async () => {
+                  if (reacting) return;
+                  const wasLiked = userReaction === "LIKE";
+                  const wasDisliked = userReaction === "DISLIKE";
+                  const likeDelta = wasLiked ? -1 : 1;
+                  const dislikeDelta = wasDisliked ? -1 : 0;
+                  const newReaction = wasLiked ? null : "LIKE";
+                  const prevReaction = userReaction;
+                  const lsKey = `blog_reaction_${user.id}_${post.id}`;
+                  setUserReaction(newReaction);
+                  setPost((p) => ({
+                    ...p,
+                    likes: (p.likes || 0) + likeDelta,
+                    dislikes: (p.dislikes || 0) + dislikeDelta,
+                  }));
+                  setReacting(true);
+                  try {
+                    const { data } = await reactToPost(
+                      post.id,
+                      likeDelta,
+                      dislikeDelta,
+                    );
+                    const updated = data.data || data;
+                    setPost((p) => ({
+                      ...p,
+                      likes: updated.likes,
+                      dislikes: updated.dislikes,
+                    }));
+                    if (newReaction) localStorage.setItem(lsKey, newReaction);
+                    else localStorage.removeItem(lsKey);
+                  } catch {
+                    setUserReaction(prevReaction);
+                    setPost((p) => ({
+                      ...p,
+                      likes: (p.likes || 0) - likeDelta,
+                      dislikes: (p.dislikes || 0) - dislikeDelta,
+                    }));
+                    toast.error("Failed to react");
+                  } finally {
+                    setReacting(false);
+                  }
+                }}
+                className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition-all ${
+                  userReaction === "LIKE"
+                    ? "border-green-300 bg-green-50 text-green-700"
+                    : "border-gray-200 bg-white text-gray-600 hover:border-green-300 hover:bg-green-50 hover:text-green-700"
+                }`}
+              >
+                <svg
+                  className="h-5 w-5"
+                  fill={userReaction === "LIKE" ? "currentColor" : "none"}
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"
+                  />
+                </svg>
+                <span>{post.likes ?? 0}</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={reacting}
+                onClick={async () => {
+                  if (reacting) return;
+                  const wasDisliked = userReaction === "DISLIKE";
+                  const wasLiked = userReaction === "LIKE";
+                  const dislikeDelta = wasDisliked ? -1 : 1;
+                  const likeDelta = wasLiked ? -1 : 0;
+                  const newReaction = wasDisliked ? null : "DISLIKE";
+                  const prevReaction = userReaction;
+                  const lsKey = `blog_reaction_${user.id}_${post.id}`;
+                  setUserReaction(newReaction);
+                  setPost((p) => ({
+                    ...p,
+                    likes: (p.likes || 0) + likeDelta,
+                    dislikes: (p.dislikes || 0) + dislikeDelta,
+                  }));
+                  setReacting(true);
+                  try {
+                    const { data } = await reactToPost(
+                      post.id,
+                      likeDelta,
+                      dislikeDelta,
+                    );
+                    const updated = data.data || data;
+                    setPost((p) => ({
+                      ...p,
+                      likes: updated.likes,
+                      dislikes: updated.dislikes,
+                    }));
+                    if (newReaction) localStorage.setItem(lsKey, newReaction);
+                    else localStorage.removeItem(lsKey);
+                  } catch {
+                    setUserReaction(prevReaction);
+                    setPost((p) => ({
+                      ...p,
+                      likes: (p.likes || 0) - likeDelta,
+                      dislikes: (p.dislikes || 0) - dislikeDelta,
+                    }));
+                    toast.error("Failed to react");
+                  } finally {
+                    setReacting(false);
+                  }
+                }}
+                className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition-all ${
+                  userReaction === "DISLIKE"
+                    ? "border-red-300 bg-red-50 text-red-600"
+                    : "border-gray-200 bg-white text-gray-600 hover:border-red-300 hover:bg-red-50 hover:text-red-600"
+                }`}
+              >
+                <svg
+                  className="h-5 w-5"
+                  fill={userReaction === "DISLIKE" ? "currentColor" : "none"}
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.095c.5 0 .905-.405.905-.905 0-.714.211-1.412.608-2.006L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5"
+                  />
+                </svg>
+                <span>{post.dislikes ?? 0}</span>
+              </button>
+            </div>
+          )}
+
+          {/* ── Share Bar ─────────────────────────────────────────── */}
+          {(() => {
+            const postUrl = encodeURIComponent(window.location.href);
+            const postText = encodeURIComponent(
+              `${post.title} — check this out!`,
+            );
+            const shares = [
+              {
+                label: "Facebook",
+                href: `https://www.facebook.com/sharer/sharer.php?u=${postUrl}`,
+                color:
+                  "hover:bg-[#1877F2]/10 hover:text-[#1877F2] hover:border-[#1877F2]/30",
+                icon: (
+                  <svg
+                    className="h-4 w-4"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z" />
+                  </svg>
+                ),
+              },
+              {
+                label: "WhatsApp",
+                href: `https://api.whatsapp.com/send?text=${postText}%20${postUrl}`,
+                color:
+                  "hover:bg-[#25D366]/10 hover:text-[#25D366] hover:border-[#25D366]/30",
+                icon: (
+                  <svg
+                    className="h-4 w-4"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                  </svg>
+                ),
+              },
+              {
+                label: "Telegram",
+                href: `https://t.me/share/url?url=${postUrl}&text=${postText}`,
+                color:
+                  "hover:bg-[#229ED9]/10 hover:text-[#229ED9] hover:border-[#229ED9]/30",
+                icon: (
+                  <svg
+                    className="h-4 w-4"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+                  </svg>
+                ),
+              },
+              {
+                label: "X",
+                href: `https://twitter.com/intent/tweet?text=${postText}&url=${postUrl}`,
+                color:
+                  "hover:bg-gray-900/10 hover:text-gray-900 hover:border-gray-400/40",
+                icon: (
+                  <svg
+                    className="h-4 w-4"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.259 5.631 5.905-5.631zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                  </svg>
+                ),
+              },
+            ];
+            return (
+              <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-gray-100 bg-gray-50/60 px-4 py-3">
+                <span className="mr-1 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                  Share
+                </span>
+                {shares.map(({ label, href, color, icon }) => (
+                  <a
+                    key={label}
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={`Share on ${label}`}
+                    className={`flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 transition-all ${color}`}
+                  >
+                    {icon}
+                    {label}
+                  </a>
+                ))}
+                <button
+                  type="button"
+                  title="Copy link"
+                  onClick={() => {
+                    navigator.clipboard
+                      .writeText(window.location.href)
+                      .then(() => toast.success("Link copied!"));
+                  }}
+                  className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 transition-all hover:bg-gray-100 hover:text-gray-900 hover:border-gray-300"
+                >
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                    />
+                  </svg>
+                  Copy link
+                </button>
+              </div>
+            );
+          })()}
 
           <section className="rounded-2xl border border-gray-200 bg-gray-50/70 p-5">
             <div className="mb-4 flex items-center justify-between gap-3">

@@ -21,7 +21,6 @@ export default function ProfilePage() {
     const formData = new FormData(e.currentTarget);
     const payload = {
       name: String(formData.get("name") || "").trim(),
-      email: String(formData.get("email") || "").trim(),
     };
     try {
       setSavingProfile(true);
@@ -150,7 +149,8 @@ export default function ProfilePage() {
                 type="email"
                 placeholder="Email"
                 defaultValue={user.email || ""}
-                className="w-full rounded-xl border border-orange-200 bg-orange-50/40 px-3 py-2.5 text-slate-800 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-200/60"
+                disabled
+                className="w-full rounded-xl border border-orange-200 bg-orange-50/40 px-3 py-2.5 text-slate-500 outline-none cursor-not-allowed opacity-60"
               />
             </div>
           </div>
@@ -235,37 +235,6 @@ export default function ProfilePage() {
           </div>
         </form>
       </section>
-
-      <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <a
-          href="/orders"
-          className="flex flex-col items-center gap-2 rounded-xl border border-slate-200 bg-white p-5 font-semibold text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-md"
-        >
-          <span className="text-lg">📦</span>
-          <span>My Orders</span>
-        </a>
-        <a
-          href="/blog?mine=true"
-          className="flex flex-col items-center gap-2 rounded-xl border border-slate-200 bg-white p-5 font-semibold text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-md"
-        >
-          <span className="text-lg">✍️</span>
-          <span>My Posts</span>
-        </a>
-        <a
-          href="/tickets"
-          className="flex flex-col items-center gap-2 rounded-xl border border-slate-200 bg-white p-5 font-semibold text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-md"
-        >
-          <span className="text-lg">🎫</span>
-          <span>My Tickets</span>
-        </a>
-        <a
-          href="/chat"
-          className="flex flex-col items-center gap-2 rounded-xl border border-slate-200 bg-white p-5 font-semibold text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-md"
-        >
-          <span className="text-lg">💬</span>
-          <span>Chat</span>
-        </a>
-      </div>
     </div>
   );
 }
