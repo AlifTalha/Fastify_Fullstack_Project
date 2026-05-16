@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 import { useForm } from "react-hook-form";
 import Swal from "sweetalert2";
@@ -9,6 +9,8 @@ import {
   updateProduct,
   deleteProduct,
   restockProduct,
+  getProductFeedback,
+  deleteFeedback,
 } from "../../api/shop";
 
 const BASE =
@@ -89,6 +91,15 @@ export default function AdminProductsPage() {
   const [imageSource, setImageSource] = useState("file"); // "file" | "url"
   const [filePreview, setFilePreview] = useState(null);
 
+  // Feedback modal state
+  const [fbModal, setFbModal] = useState({
+    open: false,
+    product: null,
+    feedbacks: [],
+    stats: { average: 0, count: 0 },
+    loading: false,
+  });
+
   const {
     register,
     handleSubmit,
@@ -98,7 +109,7 @@ export default function AdminProductsPage() {
     formState: { errors, isSubmitting },
   } = useForm();
 
-  // ── Load products ─────────────────────────────────────────────────────────
+  // â”€â”€ Load products â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
@@ -118,7 +129,7 @@ export default function AdminProductsPage() {
     };
   }, []);
 
-  // ── Derived data ──────────────────────────────────────────────────────────
+  // â”€â”€ Derived data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const stats = {
     total: products.length,
     active: products.filter((p) => p.isActive).length,
@@ -138,7 +149,7 @@ export default function AdminProductsPage() {
     safePage * PAGE_SIZE,
   );
 
-  // ── Modal helpers ─────────────────────────────────────────────────────────
+  // â”€â”€ Modal helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const openCreate = () => {
     setEditTarget(null);
     setImageSource("file");
@@ -175,7 +186,7 @@ export default function AdminProductsPage() {
     reset();
   };
 
-  // ── Submit ────────────────────────────────────────────────────────────────
+  // â”€â”€ Submit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const onSubmit = async (values) => {
     try {
       const fd = new FormData();
@@ -211,7 +222,60 @@ export default function AdminProductsPage() {
     }
   };
 
-  // ── Actions ───────────────────────────────────────────────────────────────
+  // â”€â”€ Feedback actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const handleViewFeedback = async (product) => {
+    setFbModal({
+      open: true,
+      product,
+      feedbacks: [],
+      stats: { average: 0, count: 0 },
+      loading: true,
+    });
+    try {
+      const { data } = await getProductFeedback(product.id);
+      setFbModal((prev) => ({
+        ...prev,
+        feedbacks: data.data.feedbacks,
+        stats: data.data.stats,
+        loading: false,
+      }));
+    } catch {
+      toast.error("Failed to load feedback");
+      setFbModal((prev) => ({ ...prev, loading: false }));
+    }
+  };
+
+  const handleDeleteFeedback = async (feedbackId) => {
+    const result = await Swal.fire({
+      title: "Delete this review?",
+      text: "This action cannot be undone.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes, delete",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#6b7280",
+      reverseButtons: true,
+      focusCancel: true,
+    });
+    if (!result.isConfirmed) return;
+    try {
+      await deleteFeedback(feedbackId);
+      setFbModal((prev) => ({
+        ...prev,
+        feedbacks: prev.feedbacks.filter((f) => f.id !== feedbackId),
+        stats: {
+          ...prev.stats,
+          count: prev.stats.count - 1,
+        },
+      }));
+      toast.success("Review deleted");
+    } catch {
+      toast.error("Failed to delete review");
+    }
+  };
+
+  // â”€â”€ Actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleView = async (id) => {
     try {
       const { data } = await getProductById(id);
@@ -245,7 +309,7 @@ export default function AdminProductsPage() {
               <span style="padding:4px 12px;border-radius:999px;font-size:12px;font-weight:700;${statusStyle}">${p.isActive ? "Active" : "Inactive"}</span>
             </div>
             ${p.description ? `<div style="border:1px solid #e5e7eb;border-radius:12px;padding:12px 14px;background:#f9fafb;font-size:13px;line-height:1.6;color:#374151;">${escapeHtml(p.description)}</div>` : ""}
-            <p style="margin-top:12px;font-size:11px;color:#9ca3af;">Created: ${p.createdAt ? new Date(p.createdAt).toLocaleString() : "—"}</p>
+            <p style="margin-top:12px;font-size:11px;color:#9ca3af;">Created: ${p.createdAt ? new Date(p.createdAt).toLocaleString() : "â€”"}</p>
           </div>
         `,
       });
@@ -307,7 +371,7 @@ export default function AdminProductsPage() {
     }
   };
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
       {/* Page header + stats */}
@@ -449,6 +513,11 @@ export default function AdminProductsPage() {
                       cls: "text-emerald-600",
                     },
                     {
+                      label: "Reviews",
+                      fn: () => handleViewFeedback(p),
+                      cls: "text-amber-600",
+                    },
+                    {
                       label: "Delete",
                       fn: () => handleDelete(p.id),
                       cls: "text-rose-600",
@@ -532,6 +601,12 @@ export default function AdminProductsPage() {
                           Restock
                         </button>
                         <button
+                          onClick={() => handleViewFeedback(p)}
+                          className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-100"
+                        >
+                          Reviews
+                        </button>
+                        <button
                           onClick={() => handleDelete(p.id)}
                           className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100"
                         >
@@ -550,7 +625,7 @@ export default function AdminProductsPage() {
               <p className="text-xs text-gray-500">
                 Showing{" "}
                 <span className="font-semibold text-gray-700">
-                  {(safePage - 1) * PAGE_SIZE + 1}–
+                  {(safePage - 1) * PAGE_SIZE + 1}â€“
                   {Math.min(safePage * PAGE_SIZE, filtered.length)}
                 </span>{" "}
                 of{" "}
@@ -591,17 +666,17 @@ export default function AdminProductsPage() {
                     return false;
                   })
                   .reduce((acc, n, idx, arr) => {
-                    if (idx > 0 && n - arr[idx - 1] > 1) acc.push("…");
+                    if (idx > 0 && n - arr[idx - 1] > 1) acc.push("â€¦");
                     acc.push(n);
                     return acc;
                   }, [])
                   .map((item, idx) =>
-                    item === "…" ? (
+                    item === "â€¦" ? (
                       <span
                         key={`ellipsis-${idx}`}
                         className="flex h-8 w-8 items-center justify-center text-xs text-gray-400"
                       >
-                        …
+                        â€¦
                       </span>
                     ) : (
                       <button
@@ -769,11 +844,7 @@ export default function AdminProductsPage() {
                       key={opt.value}
                       type="button"
                       onClick={() => setImageSource(opt.value)}
-                      className={`flex-1 py-2 text-xs font-semibold transition-colors ${
-                        imageSource === opt.value
-                          ? "bg-indigo-600 text-white"
-                          : "bg-white text-gray-500 hover:bg-gray-50"
-                      }`}
+                      className={`flex-1 py-2 text-xs font-semibold transition-colors ${imageSource === opt.value ? "bg-indigo-600 text-white" : "bg-white text-gray-500 hover:bg-gray-50"}`}
                     >
                       {opt.label}
                     </button>
@@ -875,6 +946,134 @@ export default function AdminProductsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Feedback Modal */}
+      {fbModal.open && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+          onClick={(e) =>
+            e.target === e.currentTarget &&
+            setFbModal((prev) => ({ ...prev, open: false }))
+          }
+        >
+          <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4 sm:px-6 sm:py-5">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-amber-500">
+                  Reviews
+                </p>
+                <h2 className="text-xl font-bold text-gray-900">
+                  {fbModal.product?.name}
+                </h2>
+                {!fbModal.loading && (
+                  <p className="mt-0.5 text-xs text-gray-400">
+                    {fbModal.stats.count} review
+                    {fbModal.stats.count !== 1 ? "s" : ""}
+                    {fbModal.stats.count > 0
+                      ? ` Â· avg ${fbModal.stats.average} â˜…`
+                      : ""}
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => setFbModal((prev) => ({ ...prev, open: false }))}
+                className="rounded-xl p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+              >
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="px-5 py-5 sm:px-6 sm:py-6">
+              {fbModal.loading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div
+                      key={i}
+                      className="animate-pulse rounded-xl bg-gray-100 h-20"
+                    />
+                  ))}
+                </div>
+              ) : fbModal.feedbacks.length === 0 ? (
+                <p className="py-10 text-center text-sm text-gray-400">
+                  No reviews yet for this product.
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {fbModal.feedbacks.map((fb) => (
+                    <div
+                      key={fb.id}
+                      className="rounded-2xl border border-gray-100 bg-gray-50 p-4"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-600 shrink-0">
+                            {fb.user.name?.[0]?.toUpperCase() || "?"}
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-gray-800">
+                              {fb.user.name}
+                            </p>
+                            <span className="flex items-center gap-0.5">
+                              {[1, 2, 3, 4, 5].map((s) => (
+                                <svg
+                                  key={s}
+                                  viewBox="0 0 20 20"
+                                  className="h-4 w-4"
+                                  fill={s <= fb.rating ? "#f59e0b" : "none"}
+                                  stroke={
+                                    s <= fb.rating ? "#f59e0b" : "#d1d5db"
+                                  }
+                                >
+                                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                              ))}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-xs text-gray-400">
+                            {new Date(fb.createdAt).toLocaleDateString(
+                              undefined,
+                              {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                              },
+                            )}
+                          </span>
+                          <button
+                            onClick={() => handleDeleteFeedback(fb.id)}
+                            className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                      <p className="mt-3 text-sm leading-relaxed text-gray-600">
+                        {fb.comment}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

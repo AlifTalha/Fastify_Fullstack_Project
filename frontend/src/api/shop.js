@@ -36,3 +36,12 @@ export const getAllOrders = (params) =>
   api.get("/shop/admin/orders", { params });
 export const getSalesStats = () => api.get("/shop/admin/orders/stats");
 export const getOrderByIdAdmin = (id) => api.get(`/shop/admin/orders/${id}`);
+
+// Product feedback
+export const getProductFeedback = (productId) =>
+  api.get(`/shop/catalog/${productId}/feedback`);
+export const submitFeedback = (productId, data) =>
+  api.post(`/shop/catalog/${productId}/feedback`, data);
+export const deleteFeedback = (id) => api.delete(`/shop/feedback/${id}`);
+export const getAllFeedbackAdmin = (params) =>
+  api.get("/shop/admin/feedback", { params });

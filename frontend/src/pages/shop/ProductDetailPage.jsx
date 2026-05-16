@@ -1,7 +1,13 @@
 ﻿import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { getCatalogItem, createOrder } from "../../api/shop";
+import {
+  getCatalogItem,
+  createOrder,
+  getProductFeedback,
+  submitFeedback,
+  deleteFeedback,
+} from "../../api/shop";
 import useAuthStore from "../../store/authStore";
 
 const BASE =
@@ -10,6 +16,268 @@ const BASE =
 
 const getImageUrl = (url) =>
   !url ? "" : /^https?:\/\//i.test(url) ? url : `${BASE}${url}`;
+
+// ─── Star display ─────────────────────────────────────────────────────────────
+function Stars({ value, size = "sm", interactive = false, onChange }) {
+  const sz = size === "lg" ? "h-7 w-7" : "h-5 w-5";
+  return (
+    <span className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((s) => (
+        <button
+          key={s}
+          type="button"
+          disabled={!interactive}
+          onClick={() => interactive && onChange && onChange(s)}
+          className={`${sz} ${interactive ? "cursor-pointer hover:scale-110 transition" : "cursor-default pointer-events-none"}`}
+          aria-label={`${s} star`}
+        >
+          <svg
+            viewBox="0 0 20 20"
+            fill={s <= value ? "#f59e0b" : "none"}
+            stroke={s <= value ? "#f59e0b" : "#d1d5db"}
+          >
+            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+          </svg>
+        </button>
+      ))}
+    </span>
+  );
+}
+
+// ─── Feedback Section ─────────────────────────────────────────────────────────
+function FeedbackSection({ productId }) {
+  const { isAuthenticated, user } = useAuthStore();
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [stats, setStats] = useState({ average: 0, count: 0 });
+  const [loadingFB, setLoadingFB] = useState(true);
+  const [myRating, setMyRating] = useState(0);
+  const [myComment, setMyComment] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [alreadyReviewed, setAlreadyReviewed] = useState(false);
+
+  const loadFeedback = async () => {
+    try {
+      const { data } = await getProductFeedback(productId);
+      setFeedbacks(data.data.feedbacks);
+      setStats(data.data.stats);
+      if (isAuthenticated && user) {
+        setAlreadyReviewed(
+          data.data.feedbacks.some((f) => f.user.id === user.id),
+        );
+      }
+    } catch {
+      // silent
+    } finally {
+      setLoadingFB(false);
+    }
+  };
+
+  useEffect(() => {
+    loadFeedback();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productId, isAuthenticated]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (myRating === 0) {
+      toast.error("Please select a star rating");
+      return;
+    }
+    if (!myComment.trim()) {
+      toast.error("Please write a comment");
+      return;
+    }
+    try {
+      setSubmitting(true);
+      await submitFeedback(productId, {
+        rating: myRating,
+        comment: myComment.trim(),
+      });
+      toast.success("Review submitted!");
+      setMyRating(0);
+      setMyComment("");
+      await loadFeedback();
+    } catch (err) {
+      const msg = err.response?.data?.message || "Failed to submit review";
+      if (err.response?.status === 409) setAlreadyReviewed(true);
+      toast.error(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      await deleteFeedback(id);
+      toast.success("Review deleted");
+      await loadFeedback();
+    } catch {
+      toast.error("Failed to delete review");
+    }
+  };
+
+  return (
+    <section className="mt-12 border-t border-gray-100 pt-10">
+      <h2 className="mb-6 text-xl font-bold text-gray-900">Customer Reviews</h2>
+
+      {/* Stats bar */}
+      <div className="mb-8 flex flex-wrap items-center gap-4 rounded-2xl border border-gray-100 bg-gray-50 px-6 py-5">
+        <div className="flex flex-col items-center gap-1 pr-6 border-r border-gray-200">
+          <span className="text-4xl font-extrabold text-amber-500">
+            {stats.average || "—"}
+          </span>
+          <Stars value={Math.round(stats.average)} size="sm" />
+          <span className="text-xs text-gray-400">
+            {stats.count} review{stats.count !== 1 ? "s" : ""}
+          </span>
+        </div>
+        <div className="flex-1 min-w-[140px] space-y-1.5">
+          {[5, 4, 3, 2, 1].map((star) => {
+            const cnt = feedbacks.filter((f) => f.rating === star).length;
+            const pct = stats.count ? Math.round((cnt / stats.count) * 100) : 0;
+            return (
+              <div key={star} className="flex items-center gap-2">
+                <span className="w-3 text-right text-xs text-gray-500">
+                  {star}
+                </span>
+                <svg
+                  viewBox="0 0 16 16"
+                  className="h-3 w-3 shrink-0"
+                  fill="#f59e0b"
+                >
+                  <path d="M7.22 1.22c.28-.86 1.28-.86 1.56 0l.99 3.06a.92.92 0 00.88.64h3.22c.9 0 1.27 1.15.55 1.68l-2.6 1.89a.92.92 0 00-.34 1.04l.99 3.06c.28.86-.7 1.57-1.43 1.04L7 11.35a.92.92 0 00-1.09 0l-2.6 1.89c-.73.53-1.71-.18-1.43-1.04l.99-3.06a.92.92 0 00-.34-1.04L.04 6.22C-.68 5.69-.3 4.54.6 4.54h3.22a.92.92 0 00.88-.64l.99-3.06z" />
+                </svg>
+                <div className="flex-1 h-2 rounded-full bg-gray-200 overflow-hidden">
+                  <div
+                    className="h-2 rounded-full bg-amber-400"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <span className="w-7 text-xs text-gray-400">{cnt}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Submit form */}
+      {isAuthenticated ? (
+        alreadyReviewed ? (
+          <div className="mb-8 rounded-xl border border-emerald-100 bg-emerald-50 px-5 py-4 text-sm text-emerald-700 font-medium">
+            ✓ You have already reviewed this product.
+          </div>
+        ) : (
+          <form
+            onSubmit={handleSubmit}
+            className="mb-8 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm space-y-4"
+          >
+            <p className="text-sm font-bold text-gray-800">Write a review</p>
+            <div>
+              <label className="block mb-1.5 text-xs font-semibold text-gray-600">
+                Your rating
+              </label>
+              <Stars
+                value={myRating}
+                interactive
+                onChange={setMyRating}
+                size="lg"
+              />
+            </div>
+            <div>
+              <label className="block mb-1.5 text-xs font-semibold text-gray-600">
+                Your comment
+              </label>
+              <textarea
+                value={myComment}
+                onChange={(e) => setMyComment(e.target.value)}
+                rows={3}
+                placeholder="Share your experience with this product..."
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 resize-none"
+                maxLength={500}
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-bold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {submitting ? "Submitting…" : "Submit Review"}
+            </button>
+          </form>
+        )
+      ) : (
+        <div className="mb-8 rounded-xl border border-gray-100 bg-gray-50 px-5 py-4 text-sm text-gray-500">
+          <Link
+            to="/login"
+            className="text-indigo-500 font-semibold hover:underline no-underline"
+          >
+            Sign in
+          </Link>{" "}
+          to leave a review.
+        </div>
+      )}
+
+      {/* Reviews list */}
+      {loadingFB ? (
+        <div className="space-y-3">
+          {[1, 2].map((i) => (
+            <div
+              key={i}
+              className="animate-pulse rounded-xl bg-gray-100 h-24"
+            />
+          ))}
+        </div>
+      ) : feedbacks.length === 0 ? (
+        <p className="text-sm text-gray-400 text-center py-8">
+          No reviews yet. Be the first!
+        </p>
+      ) : (
+        <div className="space-y-4">
+          {feedbacks.map((fb) => (
+            <div
+              key={fb.id}
+              className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-600 shrink-0">
+                    {fb.user.name?.[0]?.toUpperCase() || "?"}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">
+                      {fb.user.name}
+                    </p>
+                    <Stars value={fb.rating} size="sm" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs text-gray-400">
+                    {new Date(fb.createdAt).toLocaleDateString(undefined, {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </span>
+                  {isAuthenticated && user?.id === fb.user.id && (
+                    <button
+                      onClick={() => handleDelete(fb.id)}
+                      className="rounded-lg px-2 py-1 text-xs text-red-400 transition hover:bg-red-50 hover:text-red-600"
+                    >
+                      Delete
+                    </button>
+                  )}
+                </div>
+              </div>
+              <p className="mt-3 text-sm leading-relaxed text-gray-600">
+                {fb.comment}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
 
 export default function ProductDetailPage() {
   const { id } = useParams();
@@ -304,6 +572,8 @@ export default function ProductDetailPage() {
           </Link>
         </div>
       </div>
+
+      <FeedbackSection productId={product.id} />
     </div>
   );
 }

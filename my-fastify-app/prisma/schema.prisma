@@ -23,6 +23,7 @@ model User {
   blogPosts                BlogPost[]
   blogComments             BlogComment[]
   orders                   Order[]
+  feedbacks                ProductFeedback[]
 
   @@map("users")
 }
@@ -179,17 +180,18 @@ enum OrderStatus {
 }
 
 model Product {
-  id          String   @id @default(uuid())
+  id          String            @id @default(uuid())
   name        String
   description String
-  price       Int      // stored in cents (e.g. 2999 = $29.99)
-  currency    String   @default("usd")
+  price       Int               // stored in cents (e.g. 2999 = $29.99)
+  currency    String            @default("usd")
   imageUrl    String?
-  stock       Int      @default(0)
-  isActive    Boolean  @default(true)
+  stock       Int               @default(0)
+  isActive    Boolean           @default(true)
   orders      Order[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  feedbacks   ProductFeedback[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
   @@index([isActive])
   @@map("products")
@@ -213,6 +215,22 @@ model Order {
   @@index([userId])
   @@index([status])
   @@map("orders")
+}
+
+model ProductFeedback {
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating    Int      // 1–5
+  comment   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([productId, userId])
+  @@index([productId])
+  @@map("product_feedbacks")
 }
 
 model PasswordResetOtp {

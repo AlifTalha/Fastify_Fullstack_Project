@@ -2,11 +2,32 @@
 
 const productController = require("../controllers/productController");
 const orderController = require("../controllers/orderController");
+const feedbackController = require("../controllers/feedbackController");
 
 module.exports = async function shopRoutes(fastify) {
   // ─── Public: Product Catalog ─────────────────────────────────────────────
   fastify.get("/catalog", productController.getCatalog);
   fastify.get("/catalog/:id", productController.getCatalogItem);
+
+  // ─── Public / Authenticated: Product Feedback ────────────────────────────
+  fastify.get("/catalog/:id/feedback", feedbackController.getProductFeedback);
+  fastify.post(
+    "/catalog/:id/feedback",
+    { preHandler: [fastify.authenticate] },
+    feedbackController.submitFeedback,
+  );
+
+  // ─── Admin: Feedback Management ──────────────────────────────────────────
+  fastify.delete(
+    "/feedback/:id",
+    { preHandler: [fastify.authorizeAdmin] },
+    feedbackController.deleteFeedback,
+  );
+  fastify.get(
+    "/admin/feedback",
+    { preHandler: [fastify.authorizeAdmin] },
+    feedbackController.getAllFeedback,
+  );
 
   // ─── Admin: Product Management ───────────────────────────────────────────
   fastify.post(
