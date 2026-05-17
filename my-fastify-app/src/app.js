@@ -19,8 +19,17 @@ function buildApp(opts = {}) {
 
   app.register(helmet, { global: true });
 
+  // Support comma-separated origins e.g. "http://localhost,http://localhost:5173"
+  const rawOrigin = process.env.CORS_ORIGIN || "*";
+  const corsOrigin =
+    rawOrigin === "*"
+      ? "*"
+      : rawOrigin.includes(",")
+        ? rawOrigin.split(",").map((o) => o.trim())
+        : rawOrigin;
+
   app.register(cors, {
-    origin: process.env.CORS_ORIGIN || "*",
+    origin: corsOrigin,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     credentials: true,
   });

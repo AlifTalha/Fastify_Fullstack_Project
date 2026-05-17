@@ -1,0 +1,43 @@
+services:
+  # ── Fastify Backend ─────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./my-fastify-app
+      dockerfile: Dockerfile
+    container_name: myapp_backend
+    restart: unless-stopped
+    # Reads ALL config from .env (DATABASE_URL, JWT_SECRET, MAIL, STRIPE, etc.)
+    # Only override values that must differ inside Docker
+    env_file:
+      - ./my-fastify-app/.env
+    environment:
+      NODE_ENV: production
+      HOST: "0.0.0.0"
+      PORT: "5000"
+      # Allow both Docker frontend (port 80) and Vite dev server (port 5173)
+      CORS_ORIGIN: "http://localhost,http://localhost:5173"
+    ports:
+      - "5000:5000"
+    volumes:
+      # Persist uploaded files across container rebuilds
+      - uploads:/app/uploads
+
+  # ── React Frontend (Nginx) ──────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Relative URL — nginx proxies /api/ → backend:5000
+        VITE_API_URL: /api/v1
+        # WebSocket through nginx on port 80
+        VITE_WS_URL: ws://localhost/api/v1/chat/ws
+    container_name: myapp_frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  uploads:
