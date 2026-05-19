@@ -100,8 +100,6 @@ const blogController = {
     return reply.code(200).send({ success: true, data: post });
   },
 
-  // ── User/Admin: delete post ────────────────────────────────────────────────
-
   async deletePost(request, reply) {
     await blogService.deletePost({
       postId: request.params.id,
@@ -115,6 +113,7 @@ const blogController = {
     const stats = await blogService.getBlogStats();
     return reply.code(200).send({ success: true, data: stats });
   },
+  // Admin: list all posts with optional status/category filter ─────────────────
 
   async getAllPosts(request, reply) {
     const { status, category, page = 1, limit = 10 } = request.query;
