@@ -26,7 +26,7 @@ function HeroSection() {
             Welcome to our store
           </span>
           <h1 className="mt-5 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
-            Invent Amazing{" "}
+            Helllo Amazing{" "}
             <span className="bg-linear-to-r from-amber-300 to-orange-400 bg-clip-text text-transparent">
               Products &amp; Stories
             </span>
