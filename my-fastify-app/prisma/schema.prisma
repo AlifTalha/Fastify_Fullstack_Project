@@ -12,6 +12,7 @@ model User {
   email                    String                    @unique
   password                 String
   name                     String?
+  profileImageUrl          String?
   role                     Role                      @default(USER)
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
@@ -180,6 +181,7 @@ enum OrderStatus {
   PAID
   FAILED
   REFUNDED
+  CANCELLED
 }
 
 model Product {
@@ -189,6 +191,7 @@ model Product {
   price       Int               // stored in cents (e.g. 2999 = $29.99)
   currency    String            @default("usd")
   imageUrl    String?
+  imageUrls   String[]          @default([])
   stock       Int               @default(0)
   isActive    Boolean           @default(true)
   orders      Order[]

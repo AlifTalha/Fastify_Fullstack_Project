@@ -44,6 +44,13 @@ const BASE =
 const getImageUrl = (url) =>
   !url ? "" : /^https?:\/\//i.test(url) ? url : `${BASE}${url}`;
 
+const getPrimaryProductImage = (product) => {
+  if (Array.isArray(product?.imageUrls) && product.imageUrls.length) {
+    return product.imageUrls[0];
+  }
+  return product?.imageUrl || "";
+};
+
 export default function OrderDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -265,9 +272,9 @@ export default function OrderDetailPage() {
             {order.product && (
               <div className="flex items-center gap-4 px-5 py-4">
                 <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-gray-100 bg-gray-50">
-                  {getImageUrl(order.product.imageUrl) ? (
+                  {getImageUrl(getPrimaryProductImage(order.product)) ? (
                     <img
-                      src={getImageUrl(order.product.imageUrl)}
+                      src={getImageUrl(getPrimaryProductImage(order.product))}
                       alt={order.product.name}
                       className="h-full w-full object-cover"
                     />

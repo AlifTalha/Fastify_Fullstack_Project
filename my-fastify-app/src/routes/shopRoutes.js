@@ -55,6 +55,11 @@ module.exports = async function shopRoutes(fastify) {
     { preHandler: [fastify.authorizeAdmin] },
     productController.deleteProduct,
   );
+  fastify.delete(
+    "/products/:id/images",
+    { preHandler: [fastify.authorizeAdmin] },
+    productController.deleteProductImage,
+  );
   // PATCH /products/:id/restock — add stock quantity
   fastify.patch(
     "/products/:id/restock",
@@ -112,6 +117,11 @@ module.exports = async function shopRoutes(fastify) {
     "/orders/my/:id",
     { preHandler: [fastify.authenticate] },
     orderController.getMyOrderById,
+  );
+  fastify.post(
+    "/orders/:id/cancel",
+    { preHandler: [fastify.authenticate] },
+    orderController.cancelMyOrder,
   );
   // GET /orders/:id/invoice — download PDF invoice (users: own orders only; admins: any order)
   fastify.get(

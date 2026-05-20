@@ -1,6 +1,6 @@
 ﻿import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import Swal from "sweetalert2";
 import {
   getAllProducts,
@@ -8,6 +8,7 @@ import {
   createProduct,
   updateProduct,
   deleteProduct,
+  deleteProductImage,
   restockProduct,
   getProductFeedback,
   deleteFeedback,
@@ -22,6 +23,15 @@ const getProductImage = (url) => {
   if (/^https?:\/\//i.test(url)) return url;
   return `${BASE}${url}`;
 };
+
+const getProductImages = (product) => {
+  const urls = Array.isArray(product?.imageUrls) ? product.imageUrls : [];
+  if (urls.length) return urls;
+  return product?.imageUrl ? [product.imageUrl] : [];
+};
+
+const getPrimaryProductImage = (product) =>
+  getProductImages(product)[0] || null;
 
 const escapeHtml = (value = "") =>
   String(value)
@@ -90,6 +100,7 @@ export default function AdminProductsPage() {
   const [editTarget, setEditTarget] = useState(null);
   const [imageSource, setImageSource] = useState("file"); // "file" | "url"
   const [filePreview, setFilePreview] = useState(null);
+  const [deletingImage, setDeletingImage] = useState("");
 
   // Feedback modal state
   const [fbModal, setFbModal] = useState({
@@ -105,9 +116,10 @@ export default function AdminProductsPage() {
     handleSubmit,
     reset,
     setValue,
-    watch,
+    control,
     formState: { errors, isSubmitting },
   } = useForm();
+  const imageUrlPreview = useWatch({ control, name: "imageUrl" });
 
   // â”€â”€ Load products â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
@@ -155,6 +167,7 @@ export default function AdminProductsPage() {
     setImageSource("file");
     setFilePreview(null);
     reset();
+    setValue("imageUrls", "");
     setModalOpen(true);
   };
 
@@ -165,17 +178,17 @@ export default function AdminProductsPage() {
     setValue("price", product.price);
     setValue("stock", product.stock);
     setValue("isActive", product.isActive);
-    if (product.imageUrl && /^https?:\/\//i.test(product.imageUrl)) {
+    const primaryImage = getPrimaryProductImage(product);
+    if (primaryImage && /^https?:\/\//i.test(primaryImage)) {
       setImageSource("url");
-      setValue("imageUrl", product.imageUrl);
+      setValue("imageUrl", primaryImage);
       setFilePreview(null);
     } else {
       setImageSource("file");
       setValue("imageUrl", "");
-      setFilePreview(
-        product.imageUrl ? getProductImage(product.imageUrl) : null,
-      );
+      setFilePreview(primaryImage ? getProductImage(primaryImage) : null);
     }
+    setValue("imageUrls", getProductImages(product).join("\n"));
     setModalOpen(true);
   };
 
@@ -183,6 +196,7 @@ export default function AdminProductsPage() {
     setModalOpen(false);
     setEditTarget(null);
     setFilePreview(null);
+    setDeletingImage("");
     reset();
   };
 
@@ -203,6 +217,10 @@ export default function AdminProductsPage() {
           fd.append("imageUrl", values.imageUrl.trim());
       }
 
+      if (values.imageUrls?.trim()) {
+        fd.append("imageUrls", values.imageUrls.trim());
+      }
+
       if (editTarget) {
         const { data } = await updateProduct(editTarget.id, fd);
         const updated = data.product || data.data;
@@ -219,6 +237,42 @@ export default function AdminProductsPage() {
       closeModal();
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to save product");
+    }
+  };
+
+  const handleDeleteSingleImage = async (productId, imageUrl) => {
+    const result = await Swal.fire({
+      title: "Delete this image?",
+      text: "Only this image URL will be removed.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Delete image",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#6b7280",
+      reverseButtons: true,
+      focusCancel: true,
+    });
+    if (!result.isConfirmed) return;
+
+    try {
+      setDeletingImage(imageUrl);
+      const { data } = await deleteProductImage(productId, imageUrl);
+      const updated = data.product || data.data;
+      setProducts((prev) =>
+        prev.map((p) => (p.id === productId ? updated : p)),
+      );
+
+      if (editTarget?.id === productId) {
+        setEditTarget(updated);
+        setValue("imageUrls", getProductImages(updated).join("\n"));
+      }
+
+      toast.success("Image removed");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to remove image");
+    } finally {
+      setDeletingImage("");
     }
   };
 
@@ -280,9 +334,14 @@ export default function AdminProductsPage() {
     try {
       const { data } = await getProductById(id);
       const p = data.product || data.data || data;
-      const imgSrc = getProductImage(p.imageUrl);
-      const imageBlock = imgSrc
-        ? `<img src="${escapeHtml(imgSrc)}" alt="${escapeHtml(p.name)}" style="width:100%;max-height:240px;object-fit:cover;border-radius:14px;border:1px solid #e5e7eb;"/>`
+      const images = getProductImages(p).map((url) => getProductImage(url));
+      const imageBlock = images.length
+        ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;">${images
+            .map(
+              (src) =>
+                `<img src="${escapeHtml(src)}" alt="${escapeHtml(p.name)}" style="width:100%;height:110px;object-fit:cover;border-radius:12px;border:1px solid #e5e7eb;"/>`,
+            )
+            .join("")}</div>`
         : `<div style="width:100%;height:140px;border:1px dashed #d1d5db;border-radius:14px;display:flex;align-items:center;justify-content:center;color:#9ca3af;background:#f9fafb;font-size:13px;">No image available</div>`;
 
       const statusStyle = p.isActive
@@ -470,7 +529,7 @@ export default function AdminProductsPage() {
                 <div className="flex gap-4 p-4">
                   <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl">
                     <ProductImage
-                      url={p.imageUrl}
+                      url={getPrimaryProductImage(p)}
                       name={p.name}
                       className="h-full w-full"
                     />
@@ -556,7 +615,7 @@ export default function AdminProductsPage() {
                     <td className="px-4 py-3">
                       <div className="h-12 w-12 overflow-hidden rounded-xl">
                         <ProductImage
-                          url={p.imageUrl}
+                          url={getPrimaryProductImage(p)}
                           name={p.name}
                           className="h-full w-full"
                         />
@@ -885,9 +944,9 @@ export default function AdminProductsPage() {
                       placeholder="https://example.com/product.jpg"
                       className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                     />
-                    {watch("imageUrl") && (
+                    {imageUrlPreview && (
                       <img
-                        src={watch("imageUrl")}
+                        src={imageUrlPreview}
                         alt="URL preview"
                         className="mt-3 h-36 w-full rounded-xl border border-gray-200 object-cover"
                         onError={(e) => {
@@ -898,6 +957,56 @@ export default function AdminProductsPage() {
                         }}
                       />
                     )}
+                  </div>
+                )}
+
+                <div className="mt-4">
+                  <label className="mb-1.5 block text-xs font-bold text-gray-700">
+                    Multiple Image URLs
+                  </label>
+                  <textarea
+                    {...register("imageUrls")}
+                    rows={4}
+                    placeholder={
+                      "https://example.com/image-1.jpg\nhttps://example.com/image-2.jpg"
+                    }
+                    className="w-full resize-none rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                  />
+                  <p className="mt-1 text-xs text-gray-400">
+                    Add one URL per line (or comma separated). Existing images
+                    can be removed individually below.
+                  </p>
+                </div>
+
+                {editTarget && getProductImages(editTarget).length > 0 && (
+                  <div className="mt-4">
+                    <p className="mb-2 text-xs font-bold text-gray-700">
+                      Current Images
+                    </p>
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                      {getProductImages(editTarget).map((url) => (
+                        <div
+                          key={url}
+                          className="overflow-hidden rounded-xl border border-gray-200 bg-white"
+                        >
+                          <img
+                            src={getProductImage(url)}
+                            alt="Product"
+                            className="h-24 w-full object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleDeleteSingleImage(editTarget.id, url)
+                            }
+                            disabled={deletingImage === url}
+                            className="w-full border-t border-gray-200 px-2 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+                          >
+                            {deletingImage === url ? "Removing..." : "Remove"}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
