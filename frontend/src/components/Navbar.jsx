@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import useAuthStore from "../store/authStore";
 
-const LOGO_URL = "/image/logo.png";
+const LOGO_URL = "/image/logo3.webp";
 
 const desktopNavLinkClass = ({ isActive }) =>
   `relative text-sm font-semibold transition-colors duration-150 after:absolute after:-bottom-1 after:left-0 after:h-0.5 after:w-full after:scale-x-0 after:rounded-full after:bg-indigo-500 after:transition-transform after:duration-200 hover:text-indigo-600 hover:after:scale-x-100 ${
@@ -40,7 +40,7 @@ export default function Navbar() {
           <img
             src={LOGO_URL}
             alt="Logo"
-            className="h-9 w-auto object-contain sm:h-10"
+            className="h-10 w-10 object-contain sm:h-10"
           />
         </Link>
 

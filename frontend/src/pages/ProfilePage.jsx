@@ -3,6 +3,8 @@ import { toast } from "react-hot-toast";
 import useAuthStore from "../store/authStore";
 import { updateProfile, changePassword } from "../api/auth";
 
+const isValidHttpUrl = (value) => /^https?:\/\//i.test(String(value || ""));
+
 export default function ProfilePage() {
   const { user, fetchMe, isLoading } = useAuthStore();
   const [passwordForm, setPasswordForm] = useState({
@@ -21,6 +23,7 @@ export default function ProfilePage() {
     const formData = new FormData(e.currentTarget);
     const payload = {
       name: String(formData.get("name") || "").trim(),
+      profileImageUrl: String(formData.get("profileImageUrl") || "").trim(),
     };
     try {
       setSavingProfile(true);
@@ -69,6 +72,10 @@ export default function ProfilePage() {
       ? "border border-orange-300 bg-orange-50 text-orange-700"
       : "border border-amber-300 bg-amber-50 text-amber-700";
 
+  const profileImageSrc = isValidHttpUrl(user.profileImageUrl)
+    ? user.profileImageUrl
+    : "";
+
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8">
       <h1 className="mb-5 text-4xl font-extrabold tracking-tight text-slate-900">
@@ -77,9 +84,17 @@ export default function ProfilePage() {
 
       <section className="mb-5 grid grid-cols-1 items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-[auto_1fr_auto] sm:p-5">
         <div className="grid h-18 w-18 place-items-center rounded-2xl border border-orange-200 bg-linear-to-br from-orange-50 to-amber-50">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-linear-to-br from-orange-400 to-orange-500 text-2xl font-bold text-white">
-            {user.name?.charAt(0).toUpperCase()}
-          </div>
+          {profileImageSrc ? (
+            <img
+              src={profileImageSrc}
+              alt={user.name || "Profile"}
+              className="h-14 w-14 rounded-full object-cover"
+            />
+          ) : (
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-linear-to-br from-orange-400 to-orange-500 text-2xl font-bold text-white">
+              {user.name?.charAt(0).toUpperCase()}
+            </div>
+          )}
         </div>
 
         <div className="min-w-0">
@@ -151,6 +166,23 @@ export default function ProfilePage() {
                 defaultValue={user.email || ""}
                 disabled
                 className="w-full rounded-xl border border-orange-200 bg-orange-50/40 px-3 py-2.5 text-slate-500 outline-none cursor-not-allowed opacity-60"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2 md:col-span-2">
+              <label
+                htmlFor="profile-image-url"
+                className="text-xs font-bold uppercase tracking-[0.08em] text-amber-700"
+              >
+                Profile Image URL
+              </label>
+              <input
+                id="profile-image-url"
+                name="profileImageUrl"
+                type="url"
+                placeholder="https://example.com/my-photo.jpg"
+                defaultValue={user.profileImageUrl || ""}
+                className="w-full rounded-xl border border-orange-200 bg-orange-50/40 px-3 py-2.5 text-slate-800 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-200/60"
               />
             </div>
           </div>

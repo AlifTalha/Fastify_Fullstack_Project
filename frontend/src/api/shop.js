@@ -16,6 +16,8 @@ export const updateProduct = (id, formData) =>
     headers: { "Content-Type": "multipart/form-data" },
   });
 export const deleteProduct = (id) => api.delete(`/shop/products/${id}`);
+export const deleteProductImage = (id, imageUrl) =>
+  api.delete(`/shop/products/${id}/images`, { data: { imageUrl } });
 export const restockProduct = (id, data) =>
   api.patch(`/shop/products/${id}/restock`, data);
 

@@ -11,9 +11,16 @@ const BASE =
 const getImageUrl = (url) =>
   !url ? "" : /^https?:\/\//i.test(url) ? url : `${BASE}${url}`;
 
+const getPrimaryProductImage = (product) => {
+  if (Array.isArray(product?.imageUrls) && product.imageUrls.length) {
+    return product.imageUrls[0];
+  }
+  return product?.imageUrl || "";
+};
+
 function ProductCard({ product }) {
   const [imgError, setImgError] = useState(false);
-  const src = getImageUrl(product.imageUrl);
+  const src = getImageUrl(getPrimaryProductImage(product));
   const inStock = product.stock > 0;
 
   return (
@@ -79,6 +86,11 @@ function ProductCard({ product }) {
             }`}
           >
             {inStock ? `${product.stock} left` : "Sold out"}
+          </span>
+        </div>
+        <div className="mt-3">
+          <span className="block w-full rounded-xl bg-indigo-600 py-2 text-center text-sm font-semibold text-white transition-colors group-hover:bg-indigo-700">
+            Shop Now
           </span>
         </div>
       </div>

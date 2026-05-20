@@ -80,6 +80,22 @@ const productController = {
     return reply.send({ success: true, message: "Product deleted" });
   },
 
+  async deleteProductImage(request, reply) {
+    const imageUrl = request.body?.imageUrl || request.query?.imageUrl;
+    if (!imageUrl) {
+      return reply
+        .code(400)
+        .send({ success: false, message: "imageUrl is required" });
+    }
+
+    const product = await productService.deleteProductImage({
+      id: request.params.id,
+      imageUrl,
+    });
+
+    return reply.send({ success: true, product });
+  },
+
   async restockProduct(request, reply) {
     const { quantity } = request.body || {};
     if (!quantity) {

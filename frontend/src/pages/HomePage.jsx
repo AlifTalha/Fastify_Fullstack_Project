@@ -11,6 +11,13 @@ const BASE =
 const getImageUrl = (url) =>
   !url ? "" : /^https?:\/\//i.test(url) ? url : `${BASE}${url}`;
 
+const getPrimaryProductImage = (product) => {
+  if (Array.isArray(product?.imageUrls) && product.imageUrls.length) {
+    return product.imageUrls[0];
+  }
+  return product?.imageUrl || "";
+};
+
 // ─── Hero ──────────────────────────────────────────────────────────────────────
 function HeroSection() {
   return (
@@ -54,13 +61,17 @@ function HeroSection() {
         {/* Hero image */}
         <div className="flex-1">
           <div className="relative mx-auto w-full max-w-md">
-            <div className="absolute inset-0 rounded-3xl bg-linear-to-br from-white/10 to-transparent blur-xl" />
-            <img
-              src="https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=700&q=80"
-              alt="Hero shopping"
-              className="relative w-full rounded-3xl object-cover shadow-2xl ring-1 ring-white/10"
-              style={{ aspectRatio: "4/3" }}
-            />
+            {/* Animated RGB border wrapper */}
+            <div className="rgb-border shadow-2xl">
+              <div className="rgb-border-inner">
+                <img
+                  src="https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=700&q=80"
+                  alt="Hero shopping"
+                  className="w-full object-cover"
+                  style={{ aspectRatio: "4/3", display: "block" }}
+                />
+              </div>
+            </div>
             {/* Floating badge */}
             <div className="absolute -bottom-4 -left-4 rounded-2xl bg-white px-5 py-3 shadow-xl">
               <p className="text-xs font-semibold text-gray-400">Products</p>
@@ -90,21 +101,49 @@ function HeroSection() {
 }
 
 // ─── Stats bar ─────────────────────────────────────────────────────────────────
+function useCountUp(end, duration = 1800) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (end == null) return;
+    let startTime = null;
+    let raf;
+    const step = (timestamp) => {
+      if (!startTime) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 4); // easeOutQuart
+      setCount(Math.floor(eased * end));
+      if (progress < 1) raf = requestAnimationFrame(step);
+      else setCount(end);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [end, duration]);
+  return count;
+}
+
+function StatItem({ label, end, suffix, display }) {
+  const count = useCountUp(end);
+  const value = display ?? `${count.toLocaleString()}${suffix ?? ""}`;
+  return (
+    <div className="flex flex-col items-center py-8">
+      <p className="text-3xl font-extrabold text-indigo-600">{value}</p>
+      <p className="mt-1 text-sm font-medium text-gray-500">{label}</p>
+    </div>
+  );
+}
+
 function StatsBar() {
   const stats = [
-    { label: "Products", value: "50+" },
-    { label: "Happy Customers", value: "1,200+" },
-    { label: "Blog Articles", value: "30+" },
-    { label: "Support", value: "24/7" },
+    { label: "Products", end: 50, suffix: "+" },
+    { label: "Happy Customers", end: 1200, suffix: "+" },
+    { label: "Blog Articles", end: 30, suffix: "+" },
+    { label: "Support", end: null, display: "24/7" },
   ];
   return (
     <section className="border-b border-gray-100 bg-gray-50">
       <div className="mx-auto grid max-w-7xl grid-cols-2 divide-x divide-y divide-gray-100 sm:grid-cols-4 sm:divide-y-0">
         {stats.map((s) => (
-          <div key={s.label} className="flex flex-col items-center py-8">
-            <p className="text-3xl font-extrabold text-indigo-600">{s.value}</p>
-            <p className="mt-1 text-sm font-medium text-gray-500">{s.label}</p>
-          </div>
+          <StatItem key={s.label} {...s} />
         ))}
       </div>
     </section>
@@ -263,9 +302,9 @@ function ProductsSection() {
               className="group overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg no-underline"
             >
               <div className="aspect-square w-full overflow-hidden bg-gray-50">
-                {product.imageUrl && !imageErrors[product.id] ? (
+                {getPrimaryProductImage(product) && !imageErrors[product.id] ? (
                   <img
-                    src={getImageUrl(product.imageUrl)}
+                    src={getImageUrl(getPrimaryProductImage(product))}
                     alt={product.name}
                     className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
                     onError={() =>

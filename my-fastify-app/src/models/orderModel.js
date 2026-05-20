@@ -13,6 +13,7 @@ const ORDER_INCLUDE = {
       price: true,
       currency: true,
       imageUrl: true,
+      imageUrls: true,
     },
   },
 };

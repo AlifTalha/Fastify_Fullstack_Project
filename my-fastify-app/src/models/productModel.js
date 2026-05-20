@@ -10,6 +10,7 @@ const PRODUCT_SELECT = {
   price: true,
   currency: true,
   imageUrl: true,
+  imageUrls: true,
   stock: true,
   isActive: true,
   createdAt: true,
@@ -17,9 +18,25 @@ const PRODUCT_SELECT = {
 };
 
 const productModel = {
-  async create({ name, description, price, currency, imageUrl, stock }) {
+  async create({
+    name,
+    description,
+    price,
+    currency,
+    imageUrl,
+    imageUrls,
+    stock,
+  }) {
     return prisma.product.create({
-      data: { name, description, price, currency, imageUrl, stock },
+      data: {
+        name,
+        description,
+        price,
+        currency,
+        imageUrl,
+        imageUrls,
+        stock,
+      },
       select: PRODUCT_SELECT,
     });
   },

@@ -18,6 +18,12 @@ const BASE =
 const getImageUrl = (url) =>
   !url ? "" : /^https?:\/\//i.test(url) ? url : `${BASE}${url}`;
 
+const getProductImages = (product) => {
+  const urls = Array.isArray(product?.imageUrls) ? product.imageUrls : [];
+  if (urls.length) return urls;
+  return product?.imageUrl ? [product.imageUrl] : [];
+};
+
 // ─── Star display ─────────────────────────────────────────────────────────────
 function Stars({ value, size = "sm", interactive = false, onChange }) {
   const sz = size === "lg" ? "h-7 w-7" : "h-5 w-5";
@@ -335,15 +341,26 @@ export default function ProductDetailPage() {
   const [quantity, setQuantity] = useState(1);
   const [ordering, setOrdering] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [thumbStart, setThumbStart] = useState(0);
+  const [zoomOrigin, setZoomOrigin] = useState("50% 50%");
   const { isAuthenticated } = useAuthStore();
   const navigate = useNavigate();
+
+  const THUMBS_VISIBLE = 4;
 
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       try {
         const { data } = await getCatalogItem(id);
-        if (!cancelled) setProduct(data.product || data);
+        if (!cancelled) {
+          setActiveImageIndex(0);
+          setThumbStart(0);
+          setImgError(false);
+          setZoomOrigin("50% 50%");
+          setProduct(data.product || data);
+        }
       } catch {
         toast.error("Product not found");
         navigate("/shop");
@@ -394,8 +411,38 @@ export default function ProductDetailPage() {
 
   if (!product) return null;
 
-  const imageSrc = getImageUrl(product.imageUrl);
+  const imageUrls = getProductImages(product);
+  const selectedImage = imageUrls[activeImageIndex] || imageUrls[0] || "";
+  const imageSrc = getImageUrl(selectedImage);
   const inStock = product.stock > 0;
+  const maxThumbStart = Math.max(0, imageUrls.length - THUMBS_VISIBLE);
+  const visibleThumbnails = imageUrls.slice(
+    thumbStart,
+    thumbStart + THUMBS_VISIBLE,
+  );
+
+  const handleMainImageMouseMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    const clampedX = Math.max(0, Math.min(100, x));
+    const clampedY = Math.max(0, Math.min(100, y));
+    setZoomOrigin(`${clampedX}% ${clampedY}%`);
+  };
+
+  const handleSelectImage = (idx) => {
+    setActiveImageIndex(idx);
+    setImgError(false);
+
+    if (idx < thumbStart) {
+      setThumbStart(idx);
+      return;
+    }
+
+    if (idx >= thumbStart + THUMBS_VISIBLE) {
+      setThumbStart(Math.min(idx - THUMBS_VISIBLE + 1, maxThumbStart));
+    }
+  };
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
@@ -442,29 +489,119 @@ export default function ProductDetailPage() {
       {/* Layout */}
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12">
         {/* Image */}
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-gray-50">
-          {imageSrc && !imgError ? (
-            <img
-              src={imageSrc}
-              alt={product.name}
-              className="h-full w-full object-cover"
-              onError={() => setImgError(true)}
-            />
-          ) : (
-            <div className="flex aspect-square items-center justify-center bg-linear-to-br from-gray-50 to-gray-100">
-              <svg
-                className="h-20 w-20 text-gray-300"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
+        <div className="space-y-3">
+          <div
+            className="group relative flex h-90 items-center justify-center overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 sm:h-105"
+            onMouseMove={handleMainImageMouseMove}
+            onMouseLeave={() => setZoomOrigin("50% 50%")}
+          >
+            {imageSrc && !imgError ? (
+              <img
+                src={imageSrc}
+                alt={product.name}
+                className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-150"
+                style={{ transformOrigin: zoomOrigin }}
+                onError={() => setImgError(true)}
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-gray-50 to-gray-100">
+                <svg
+                  className="h-20 w-20 text-gray-300"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1}
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+              </div>
+            )}
+          </div>
+
+          {imageUrls.length > 0 && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setThumbStart((p) => Math.max(0, p - 1))}
+                disabled={thumbStart === 0}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 transition hover:border-indigo-300 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label="Previous thumbnails"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1}
-                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 19l-7-7 7-7"
+                  />
+                </svg>
+              </button>
+
+              <div className="grid flex-1 grid-cols-4 gap-2">
+                {visibleThumbnails.map((url, offset) => {
+                  const idx = thumbStart + offset;
+                  return (
+                    <button
+                      key={`${url}-${idx}`}
+                      type="button"
+                      onClick={() => handleSelectImage(idx)}
+                      className={`overflow-hidden rounded-xl border ${
+                        idx === activeImageIndex
+                          ? "border-indigo-500 ring-2 ring-indigo-100"
+                          : "border-gray-200"
+                      }`}
+                    >
+                      <img
+                        src={getImageUrl(url)}
+                        alt={`${product.name} ${idx + 1}`}
+                        className="h-16 w-full object-cover"
+                      />
+                    </button>
+                  );
+                })}
+                {visibleThumbnails.length < THUMBS_VISIBLE &&
+                  Array.from({
+                    length: THUMBS_VISIBLE - visibleThumbnails.length,
+                  }).map((_, i) => (
+                    <div
+                      key={`thumb-empty-${i}`}
+                      className="h-16 rounded-xl border border-dashed border-gray-200 bg-gray-50"
+                    />
+                  ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setThumbStart((p) => Math.min(maxThumbStart, p + 1))
+                }
+                disabled={thumbStart >= maxThumbStart}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 transition hover:border-indigo-300 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label="Next thumbnails"
+              >
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </button>
             </div>
           )}
         </div>

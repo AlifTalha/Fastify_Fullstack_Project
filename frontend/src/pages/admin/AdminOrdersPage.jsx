@@ -48,6 +48,12 @@ const BASE =
   "http://localhost:3000";
 const getImageUrl = (url) =>
   !url ? null : /^https?:\/\//i.test(url) ? url : `${BASE}${url}`;
+const getPrimaryProductImage = (product) => {
+  if (Array.isArray(product?.imageUrls) && product.imageUrls.length) {
+    return product.imageUrls[0];
+  }
+  return product?.imageUrl || null;
+};
 const fmtAmount = (cents) =>
   cents != null ? `$${Number(cents).toFixed(2)}` : "—";
 const fmtDate = (iso) =>
@@ -125,8 +131,8 @@ function OrderDetailDrawer({ orderId, onClose }) {
 
   if (!orderId) return null;
 
-  const imgSrc = order?.product?.imageUrl
-    ? getImageUrl(order.product.imageUrl)
+  const imgSrc = getPrimaryProductImage(order?.product)
+    ? getImageUrl(getPrimaryProductImage(order.product))
     : null;
 
   return (
