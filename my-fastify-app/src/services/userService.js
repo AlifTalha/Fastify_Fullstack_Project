@@ -34,7 +34,13 @@ const userService = {
       err.statusCode = 401;
       throw err;
     }
-    return { id: user.id, email: user.email, name: user.name, role: user.role };
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      profileImageUrl: user.profileImageUrl,
+      role: user.role,
+    };
   },
 
   // ── Refresh tokens ─────────────────────────────────────────────────────────
@@ -97,6 +103,12 @@ const userService = {
     if (data.password) {
       data.password = await bcrypt.hash(data.password, SALT_ROUNDS);
     }
+
+    if (Object.hasOwn(data, "profileImageUrl")) {
+      const profileImageUrl = String(data.profileImageUrl || "").trim();
+      data.profileImageUrl = profileImageUrl || null;
+    }
+
     return userModel.update(id, data);
   },
 

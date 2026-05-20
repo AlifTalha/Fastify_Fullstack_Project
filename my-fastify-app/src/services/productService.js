@@ -18,6 +18,33 @@ async function saveFile(part) {
   return `/uploads/products/${filename}`;
 }
 
+function normalizeImageUrls(urls = []) {
+  return [...new Set(urls.map((u) => String(u || "").trim()).filter(Boolean))];
+}
+
+function parseImageUrlsField(rawValue) {
+  if (rawValue === undefined || rawValue === null) return [];
+  const value = String(rawValue).trim();
+  if (!value) return [];
+
+  if (value.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return normalizeImageUrls(parsed);
+    } catch {
+      // Fallback to newline/comma parsing below.
+    }
+  }
+
+  return normalizeImageUrls(value.split(/[\n,]+/));
+}
+
+function getProductImages(product) {
+  const urls = Array.isArray(product.imageUrls) ? product.imageUrls : [];
+  if (urls.length) return normalizeImageUrls(urls);
+  return product.imageUrl ? [product.imageUrl] : [];
+}
+
 const productService = {
   async createProduct({ fields, fileParts }) {
     const { name, description, price, currency, stock } = fields;
@@ -35,19 +62,24 @@ const productService = {
       throw err;
     }
 
-    let imageUrl;
-    if (fileParts?.image) {
-      imageUrl = await saveFile(fileParts.image);
-    } else if (fields.imageUrl && fields.imageUrl.trim()) {
-      imageUrl = fields.imageUrl.trim();
+    const imageUrls = parseImageUrlsField(fields.imageUrls);
+    if (fields.imageUrl && fields.imageUrl.trim()) {
+      imageUrls.push(fields.imageUrl.trim());
     }
+    if (fileParts?.image) {
+      imageUrls.push(await saveFile(fileParts.image));
+    }
+
+    const normalizedImageUrls = normalizeImageUrls(imageUrls);
+    const primaryImage = normalizedImageUrls[0] || null;
 
     return productModel.create({
       name,
       description,
       price: priceInt,
       currency: currency || "usd",
-      imageUrl: imageUrl || null,
+      imageUrl: primaryImage,
+      imageUrls: normalizedImageUrls,
       stock: parseInt(stock, 10) || 0,
     });
   },
@@ -79,6 +111,9 @@ const productService = {
     }
 
     const data = {};
+    let imageUrls = getProductImages(product);
+    let hasImageUpdate = false;
+
     if (fields.name) data.name = fields.name;
     if (fields.description) data.description = fields.description;
     if (fields.price) {
@@ -95,13 +130,69 @@ const productService = {
       data.stock = parseInt(fields.stock, 10) || 0;
     if (fields.isActive !== undefined)
       data.isActive = fields.isActive === "true";
+
+    if (fields.imageUrls !== undefined) {
+      imageUrls = parseImageUrlsField(fields.imageUrls);
+      hasImageUpdate = true;
+    }
+
     if (fileParts?.image) {
-      data.imageUrl = await saveFile(fileParts.image);
-    } else if (fields.imageUrl !== undefined && fields.imageUrl.trim() !== "") {
-      data.imageUrl = fields.imageUrl.trim();
+      imageUrls.push(await saveFile(fileParts.image));
+      hasImageUpdate = true;
+    }
+
+    if (fields.imageUrl !== undefined && fields.imageUrl.trim() !== "") {
+      imageUrls.push(fields.imageUrl.trim());
+      hasImageUpdate = true;
+    }
+
+    if (fields.removeImageUrls !== undefined) {
+      const removeSet = new Set(parseImageUrlsField(fields.removeImageUrls));
+      imageUrls = imageUrls.filter((url) => !removeSet.has(url));
+      hasImageUpdate = true;
+    }
+
+    if (fields.clearImages === "true") {
+      imageUrls = [];
+      hasImageUpdate = true;
+    }
+
+    if (hasImageUpdate) {
+      const normalized = normalizeImageUrls(imageUrls);
+      data.imageUrls = normalized;
+      data.imageUrl = normalized[0] || null;
     }
 
     return productModel.update(id, data);
+  },
+
+  async deleteProductImage({ id, imageUrl }) {
+    const product = await productModel.findById(id);
+    if (!product) {
+      const err = new Error("Product not found");
+      err.statusCode = 404;
+      throw err;
+    }
+
+    const targetUrl = String(imageUrl || "").trim();
+    if (!targetUrl) {
+      const err = new Error("imageUrl is required");
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const imageUrls = getProductImages(product);
+    if (!imageUrls.includes(targetUrl)) {
+      const err = new Error("Image not found for this product");
+      err.statusCode = 404;
+      throw err;
+    }
+
+    const updatedImages = imageUrls.filter((url) => url !== targetUrl);
+    return productModel.update(id, {
+      imageUrls: updatedImages,
+      imageUrl: updatedImages[0] || null,
+    });
   },
 
   async deleteProduct(id) {

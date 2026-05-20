@@ -254,6 +254,31 @@ const orderService = {
     return order;
   },
 
+  async cancelMyOrder({ orderId, userId }) {
+    const order = await orderModel.findById(orderId);
+    if (!order) {
+      const err = new Error("Order not found");
+      err.statusCode = 404;
+      throw err;
+    }
+    if (order.userId !== userId) {
+      const err = new Error("Forbidden");
+      err.statusCode = 403;
+      throw err;
+    }
+
+    if (order.status === "CANCELLED") return order;
+    if (order.status !== "PENDING") {
+      const err = new Error(
+        `Only pending orders can be cancelled. Current status: ${order.status}`,
+      );
+      err.statusCode = 400;
+      throw err;
+    }
+
+    return orderModel.updateStatus(orderId, "CANCELLED");
+  },
+
   async getAllOrders({ status, page, limit }) {
     return orderModel.findAllOrders({ status, page, limit });
   },

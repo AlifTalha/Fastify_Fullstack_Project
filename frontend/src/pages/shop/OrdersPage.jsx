@@ -26,13 +26,14 @@ const STATUS = {
   },
 };
 
-const LIMIT = 10;
+const LIMIT = 6;
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -42,7 +43,9 @@ export default function OrdersPage() {
         const { data } = await getMyOrders({ page, limit: LIMIT });
         if (!cancelled) {
           setOrders(data.orders || data.data || []);
-          setTotalPages(Math.ceil((data.total || 0) / LIMIT) || 1);
+          const nextTotal = data.total || 0;
+          setTotal(nextTotal);
+          setTotalPages(Math.ceil(nextTotal / LIMIT) || 1);
         }
       } catch {
         if (!cancelled) toast.error("Failed to load orders");
@@ -55,6 +58,22 @@ export default function OrdersPage() {
       cancelled = true;
     };
   }, [page]);
+
+  const paginationItems = Array.from({ length: totalPages }, (_, i) => i + 1)
+    .filter((n) => {
+      if (totalPages <= 7) return true;
+      if (n === 1 || n === totalPages) return true;
+      if (Math.abs(n - page) <= 1) return true;
+      return false;
+    })
+    .reduce((acc, n, idx, arr) => {
+      if (idx > 0 && n - arr[idx - 1] > 1) acc.push("…");
+      acc.push(n);
+      return acc;
+    }, []);
+
+  const startIndex = total === 0 ? 0 : (page - 1) * LIMIT + 1;
+  const endIndex = Math.min(page * LIMIT, total);
 
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
@@ -175,58 +194,78 @@ export default function OrdersPage() {
 
       {/* Pagination */}
       {totalPages > 1 && !loading && (
-        <div className="mt-8 flex items-center justify-center gap-1">
-          <button
-            disabled={page === 1}
-            onClick={() => setPage((p) => p - 1)}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition hover:border-indigo-300 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-          </button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+        <div className="mt-8 flex flex-col items-center justify-between gap-3 sm:flex-row">
+          <p className="text-xs text-gray-500">
+            Showing{" "}
+            <span className="font-semibold text-gray-700">{startIndex}</span>-
+            <span className="font-semibold text-gray-700">{endIndex}</span> of{" "}
+            <span className="font-semibold text-gray-700">{total}</span> orders
+          </p>
+
+          <div className="flex items-center justify-center gap-1">
             <button
-              key={n}
-              onClick={() => setPage(n)}
-              className={`flex h-9 w-9 items-center justify-center rounded-lg border text-xs font-semibold transition ${
-                page === n
-                  ? "border-indigo-500 bg-indigo-600 text-white shadow-sm"
-                  : "border-gray-200 bg-white text-gray-600 hover:border-indigo-300 hover:text-indigo-600"
-              }`}
+              disabled={page === 1}
+              onClick={() => setPage((p) => p - 1)}
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition hover:border-indigo-300 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {n}
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
             </button>
-          ))}
-          <button
-            disabled={page === totalPages}
-            onClick={() => setPage((p) => p + 1)}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition hover:border-indigo-300 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+
+            {paginationItems.map((item, idx) =>
+              item === "…" ? (
+                <span
+                  key={`ellipsis-${idx}`}
+                  className="flex h-9 w-9 items-center justify-center text-xs text-gray-400"
+                >
+                  …
+                </span>
+              ) : (
+                <button
+                  key={item}
+                  onClick={() => setPage(item)}
+                  className={`flex h-9 w-9 items-center justify-center rounded-lg border text-xs font-semibold transition ${
+                    page === item
+                      ? "border-indigo-500 bg-indigo-600 text-white shadow-sm"
+                      : "border-gray-200 bg-white text-gray-600 hover:border-indigo-300 hover:text-indigo-600"
+                  }`}
+                >
+                  {item}
+                </button>
+              ),
+            )}
+
+            <button
+              disabled={page === totalPages}
+              onClick={() => setPage((p) => p + 1)}
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition hover:border-indigo-300 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
-          </button>
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
       )}
     </div>

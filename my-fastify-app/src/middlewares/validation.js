@@ -52,6 +52,7 @@ const updateUserSchema = {
     properties: {
       name: { type: "string", minLength: 2, maxLength: 50 },
       password: { type: "string", minLength: 8, maxLength: 128 },
+      profileImageUrl: { type: "string", maxLength: 2048 },
     },
     additionalProperties: false,
   },
@@ -117,6 +118,7 @@ module.exports = {
       properties: {
         name: { type: "string", minLength: 2, maxLength: 50 },
         email: { type: "string", format: "email", maxLength: 255 },
+        profileImageUrl: { type: "string", maxLength: 2048 },
       },
       additionalProperties: false,
     },

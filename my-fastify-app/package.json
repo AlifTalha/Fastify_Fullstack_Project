@@ -1,11 +1,11 @@
 {
   "name": "my-fastify-app",
   "version": "1.0.0",
-  "description": "Fastify REST API with Prisma ORM and PostgreSQL — Auth, JWT, Role-based access",
+  "description": "Fastify REST API with Prisma ORM and PostgreSQL \u2014 Auth, JWT, Role-based access",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
+    "start": "node init && node server.js",
+    "dev": "node init && nodemon server.js",
     "migrate": "npx prisma migrate dev",
     "migrate:deploy": "npx prisma migrate deploy",
     "prisma:generate": "npx prisma generate",

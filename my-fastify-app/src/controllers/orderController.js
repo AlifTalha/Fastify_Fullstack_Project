@@ -102,6 +102,19 @@ const orderController = {
     return reply.send({ success: true, invoice: formatOrder(order) });
   },
 
+  async cancelMyOrder(request, reply) {
+    const order = await orderService.cancelMyOrder({
+      orderId: request.params.id,
+      userId: request.user.id,
+    });
+
+    return reply.send({
+      success: true,
+      message: "Order cancelled successfully",
+      order: formatOrder(order),
+    });
+  },
+
   // Admin
   async getAllOrders(request, reply) {
     const page = parseInt(request.query.page, 10) || 1;
